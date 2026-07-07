@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
-  Plus, X, Check, Sparkles, Loader2, Download, Eye, Trash2, ChevronRight, UserRound
+  Plus, X, Check, Sparkles, Loader2, Download, Eye, Trash2, ChevronRight,
+  ChevronDown, UserRound, Clock
 } from "lucide-react";
 import {
   emptyProfile, profileKey, PROFILE_PREFIX, renderProfileBlock,
@@ -115,10 +116,16 @@ export default function ProfileView({ subjects, taxonomies, callClaude, showToas
 
 function profileCompleteness(p) {
   let total = 0, done = 0;
-  const ss = p.session_shape || {}; SESSION_FIELDS.forEach(([k]) => { total++; if (ss[k]) done++; });
+  const ss = p.session_shape || {};
+  SESSION_FIELDS.forEach(([k]) => { total++; if (ss[k]) done++; });
+  const fac = p.facilitation || {};
+  ["style", "engagement", "consolidation"].forEach((k) => { total++; if (fac[k]) done++; });
   total++; if (p.pedagogy?.session_flow_id || p.pedagogy?.candidate_session_flow) done++;
   total++; if ((p.pedagogy?.teaching_move_ids || []).length) done++;
-  total++; if ((p.student_struggles?.concept_specific || []).length + (p.student_struggles?.subject_general || []).length + (p.student_struggles?.foundational || []).length) done++;
+  const st = p.student_struggles || {};
+  total++; if ((st.concept_specific || []).length + (st.subject_general || []).length + (st.foundational || []).length) done++;
+  const asm = p.assessment_style || {};
+  total++; if (asm.pre_test || asm.post_test || asm.revision) done++;
   total++; if (p.plan_preferences?.tone) done++;
   return Math.round((done / total) * 100);
 }
@@ -148,6 +155,7 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
   const [p, setP] = useState(() => JSON.parse(JSON.stringify(entry.profile)));
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [showLog, setShowLog] = useState(false);
   const tax = taxonomies[p.subject] || { macros: [], mesos: [] };
 
   const update = (path, value) => {
@@ -197,6 +205,7 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
           n.student_struggles.foundational.push({ statement: s, implication: parsed.implication || "simplify language" });
         else
           n.student_struggles.subject_general.push({ statement: s, applies_to: parsed.applies_to || `all sessions in ${p.subject}` });
+        logChange(n, "struggle_added", s, { trigger: "proactive", kind: parsed.kind });
         return n;
       });
       setStruggleText("");
@@ -264,7 +273,7 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
       <Section title="Details">
         <div className="lpa-two-col">
           <div><label className="lpa-label">Grades (comma sep)</label>
-            <input className="lpa-input" value={(p.grades || []).join(", ")} onChange={e => update("grades", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} /></div>
+            <input className="lpa-input" value={(p.grades || []).join(", ")} onChange={e => update("grades", e.target.value.split(",").map(s => s.trim()).filter(Boolean).map(Number).filter(n => !isNaN(n)))} placeholder="e.g. 6, 7, 8" /></div>
           <div><label className="lpa-label">Years teaching</label>
             <input className="lpa-input" type="number" value={p.experience_years ?? ""} onChange={e => update("experience_years", e.target.value ? Number(e.target.value) : null)} /></div>
         </div>
@@ -273,11 +282,25 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
       {/* session shape */}
       <Section title="How you run a period (Session Shape)">
         <FreehandExtract value={freehand.session_shape || ""} onChange={v => setFreehand({ ...freehand, session_shape: v })}
-          onExtract={() => extractSection("session_shape")} placeholder="Describe a typical period in your own words — we'll fill the fields below." />
+          onExtract={() => extractSection("session_shape")} busy={busy}
+          placeholder="Describe a typical period in your own words — we'll fill the fields below." />
         {SESSION_FIELDS.map(([k, hint]) => (
           <div key={k}><label className="lpa-label">{k.replace(/_/g, " ")} <span className="lpa-muted-sm">— {hint}</span></label>
             <input className="lpa-input" value={p.session_shape[k] || ""} onChange={e => update(`session_shape.${k}`, e.target.value)} /></div>
         ))}
+      </Section>
+
+      {/* facilitation */}
+      <Section title="How you facilitate learning">
+        <FreehandExtract value={freehand.facilitation || ""} onChange={v => setFreehand({ ...freehand, facilitation: v })}
+          onExtract={() => extractSection("facilitation")} busy={busy}
+          placeholder="Describe your teaching style — who talks, how students engage, how they consolidate." />
+        <div><label className="lpa-label">Style <span className="lpa-muted-sm">— main explainer vs co-construct vs student-led</span></label>
+          <input className="lpa-input" value={p.facilitation.style || ""} onChange={e => update("facilitation.style", e.target.value)} /></div>
+        <div><label className="lpa-label">Engagement <span className="lpa-muted-sm">— individual / pair / group / whole-class default</span></label>
+          <input className="lpa-input" value={p.facilitation.engagement || ""} onChange={e => update("facilitation.engagement", e.target.value)} /></div>
+        <div><label className="lpa-label">Consolidation <span className="lpa-muted-sm">— how students lock in what they learned</span></label>
+          <input className="lpa-input" value={p.facilitation.consolidation || ""} onChange={e => update("facilitation.consolidation", e.target.value)} /></div>
       </Section>
 
       {/* pedagogy */}
@@ -332,8 +355,23 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
         <StruggleList label="Foundational" tier="foundational" items={p.student_struggles.foundational} onRemove={removeStruggle} />
       </Section>
 
+      {/* context */}
+      <Section title="Classroom context">
+        <div className="lpa-two-col">
+          <div><label className="lpa-label">Typical class size</label>
+            <input className="lpa-input" type="number" value={p.context.class_size ?? ""} onChange={e => update("context.class_size", e.target.value ? Number(e.target.value) : null)} /></div>
+          <div><label className="lpa-label">Language of instruction</label>
+            <input className="lpa-input" value={p.context.medium || ""} onChange={e => update("context.medium", e.target.value)} placeholder="e.g. English" /></div>
+        </div>
+        <label className="lpa-label">Aids available (comma sep)</label>
+        <input className="lpa-input" value={(p.context.aids_available || []).join(", ")} onChange={e => update("context.aids_available", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} placeholder="e.g. projector, lab kits, tablets" />
+      </Section>
+
       {/* assessment + prefs */}
       <Section title="How you build assessments (Clarius)">
+        <FreehandExtract value={freehand.assessment_style || ""} onChange={v => setFreehand({ ...freehand, assessment_style: v })}
+          onExtract={() => extractSection("assessment_style")} busy={busy}
+          placeholder="Describe how you build pre-tests, post-tests, and revision assessments in Clarius." />
         {["pre_test", "post_test", "revision"].map(k => (
           <div key={k}><label className="lpa-label">{k.replace("_", "-")}</label>
             <input className="lpa-input" value={p.assessment_style[k] || ""} onChange={e => update(`assessment_style.${k}`, e.target.value)} /></div>
@@ -341,6 +379,9 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
       </Section>
 
       <Section title="What you want from the auto-plan">
+        <FreehandExtract value={freehand.plan_preferences || ""} onChange={v => setFreehand({ ...freehand, plan_preferences: v })}
+          onExtract={() => extractSection("plan_preferences")} busy={busy}
+          placeholder="Describe how detailed you want plans, the tone you prefer, and anything plans must always include." />
         <label className="lpa-label">Detail level</label>
         <select className="lpa-input" value={p.plan_preferences.detail_level} onChange={e => update("plan_preferences.detail_level", e.target.value)}>
           <option value="detailed">Detailed teacher notes</option><option value="lean">Lean skeleton</option>
@@ -352,6 +393,35 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
         <label className="lpa-label">Must-include (comma sep)</label>
         <input className="lpa-input" value={(p.plan_preferences.must_include || []).join(", ")} onChange={e => update("plan_preferences.must_include", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} />
       </Section>
+
+      <Section title="Variations & boundaries">
+        <label className="lpa-label">How your approach changes by grade</label>
+        <textarea className="lpa-input lpa-textarea" rows={2} value={p.variations.grade_variation || ""} onChange={e => update("variations.grade_variation", e.target.value)} placeholder="e.g. Grade 6 gets more visual scaffolding; Grade 8 moves faster to symbolic work." />
+        <label className="lpa-label">Things you deliberately avoid (comma sep)</label>
+        <input className="lpa-input" value={(p.variations.avoids || []).join(", ")} onChange={e => update("variations.avoids", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} placeholder="e.g. cold-call, long lectures, worksheets without discussion" />
+      </Section>
+
+      {(p.change_log || []).length > 0 && (
+        <div className="lpa-card" style={{ marginBottom: 12 }}>
+          <div className="lpa-col-header" style={{ cursor: "pointer", marginBottom: showLog ? 10 : 0 }} onClick={() => setShowLog(!showLog)}>
+            <span className="lpa-card-title" style={{ marginBottom: 0, display: "flex", alignItems: "center", gap: 6 }}>
+              <Clock size={14} /> Change log <span className="lpa-muted-sm">({p.change_log.length})</span>
+            </span>
+            {showLog ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          </div>
+          {showLog && (
+            <div className="lpa-stack">
+              {p.change_log.map((entry, i) => (
+                <div key={i} className="lpa-quote" style={{ fontStyle: "normal" }}>
+                  <div className="lpa-muted-sm">{new Date(entry.date).toLocaleString()} · {entry.action}</div>
+                  <div>{entry.note}</div>
+                  {entry.base_id && <div className="lpa-muted-sm">base: {entry.base_id}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {preview && (
         <div className="lpa-inset" style={{ marginTop: 16 }}>
@@ -373,11 +443,13 @@ function Section({ title, children }) {
   );
 }
 
-function FreehandExtract({ value, onChange, onExtract, placeholder }) {
+function FreehandExtract({ value, onChange, onExtract, placeholder, busy }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <textarea className="lpa-input lpa-textarea" rows={2} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
-      <button className="lpa-btn lpa-btn-sm" style={{ marginTop: 6 }} onClick={onExtract}><Sparkles size={13} /> Extract into fields</button>
+      <button className="lpa-btn lpa-btn-sm" style={{ marginTop: 6 }} onClick={onExtract} disabled={busy || !value.trim()}>
+        {busy ? <Loader2 size={13} className="lpa-spin" /> : <Sparkles size={13} />} Extract into fields
+      </button>
     </div>
   );
 }

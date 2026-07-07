@@ -967,8 +967,8 @@ export default function LessonPlanArchitect() {
 
       <div className="lpa-header">
         <div>
-          <div className="lpa-display lpa-title">Lesson Plan Architect</div>
-          <div className="lpa-subtitle">decode \u2192 map \u2192 prompt \u2192 plan</div>
+          <div className="lpa-display lpa-title">Upschool Teacher Profiler</div>
+          <div className="lpa-subtitle">onboard teachers · capture style · export profiles · generate plans</div>
         </div>
       </div>
 
