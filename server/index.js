@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
 const API_KEY = process.env.OPENAI_API_KEY;
-const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini-2026-03-17";
 // Optional: constrain reasoning effort on reasoning models (none|low|medium|high).
 const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "low";
 

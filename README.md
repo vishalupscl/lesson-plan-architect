@@ -93,7 +93,7 @@ If you'd rather run them in two terminals: `npm run server` in one,
 - **API key safety**: the key lives only in `.env` and is read by the
   Node server — it's never sent to or exposed in the browser. Don't commit
   `.env` (it's already in `.gitignore`).
-- **Model**: defaults to `gpt-5.4-mini`. Override with `OPENAI_MODEL`
+- **Model**: defaults to `gpt-5.4-mini-2026-03-17`. Override with `OPENAI_MODEL`
   in `.env` if you want a different one (e.g. `gpt-5.4` for higher
   quality generation, or `gpt-5.4-nano` for cheaper/faster
   classification calls). `OPENAI_REASONING_EFFORT` (default `low`) tunes how
