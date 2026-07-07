@@ -51,12 +51,12 @@ function stripFences(s) {
   return (s || "").replace(/```json/gi, "").replace(/```/g, "").trim();
 }
 
-/* ---------------- Claude API ---------------- */
+/* ---------------- ChatGPT API ---------------- */
 
-async function callClaude(prompt, maxTokens = 1000) {
-  // Calls the local Express proxy (server/index.js) instead of Anthropic
+async function callChatGPT(prompt, maxTokens = 1000) {
+  // Calls the local Express proxy (server/index.js) instead of OpenAI
   // directly, so your API key stays server-side and never reaches the browser.
-  const response = await fetch("/api/claude", {
+  const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, maxTokens })
@@ -742,7 +742,7 @@ export default function LessonPlanArchitect() {
     try {
       const tax = taxSnapshot || taxonomies[sub.subject] || { macros: [], mesos: [] };
       const prompt = buildClassifyPrompt(sub, tax);
-      const raw = await callClaude(prompt, 700);
+      const raw = await callChatGPT(prompt, 700);
       const parsed = safeParse(stripFences(raw), null);
       if (!parsed) throw new Error("bad json");
       await updateSubmission({ ...sub, status: "needs_review", classification: parsed });
@@ -816,7 +816,7 @@ export default function LessonPlanArchitect() {
     const promptText = buildLessonPrompt(sub, tax);
     await updateSubmission({ ...sub, status: "generating", prompt: promptText });
     try {
-      const planText = await callClaude(promptText, 1000);
+      const planText = await callChatGPT(promptText, 1000);
       await updateSubmission({ ...sub, status: "plan_generated", prompt: promptText, plan: planText });
       showToast("Lesson plan generated");
     } catch (e) {
@@ -992,7 +992,7 @@ export default function LessonPlanArchitect() {
               onAddMacro={addMacro} onAddMeso={addMeso} onDeleteMacro={deleteMacro} onDeleteMeso={deleteMeso} onAddSubject={addSubject} />
           )}
           {view === "profiles" && (
-            <ProfileView subjects={subjects} taxonomies={taxonomies} callClaude={callClaude} showToast={showToast} masterPrompt={MASTER_PROMPT} />
+            <ProfileView subjects={subjects} taxonomies={taxonomies} callChatGPT={callChatGPT} showToast={showToast} masterPrompt={MASTER_PROMPT} />
           )}
           {view === "intake" && (
             <NewResponseView subjects={subjects} taxonomies={taxonomies} onCreate={createSubmission} lastCreated={lastCreated} />
