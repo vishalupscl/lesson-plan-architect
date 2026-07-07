@@ -93,9 +93,8 @@ If you'd rather run them in two terminals: `npm run server` in one,
 - **API key safety**: the key lives only in `.env` and is read by the
   Node server — it's never sent to or exposed in the browser. Don't commit
   `.env` (it's already in `.gitignore`).
-- **Model**: defaults to `gpt-4o`. Override with `OPENAI_MODEL`
-  in `.env` if you want a different one (e.g. `gpt-4o-mini` for cheaper/faster
-  calls, or `gpt-4.1` for higher quality generation).
+- **Model**: defaults to `gpt-5.4-mini-2026-03-17`. Override with `OPENAI_MODEL`
+  in `.env` if you want a different one.
 - **Taxonomy data**: Mathematics is seeded with two entries marked
   `(sample)` so you can see the shape of the data. Delete them from the
   Taxonomy Library tab and add your real Pedagogy Engine library.

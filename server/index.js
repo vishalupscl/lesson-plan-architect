@@ -14,7 +14,7 @@ app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
 const API_KEY = process.env.OPENAI_API_KEY;
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini-2026-03-17";
 
 app.post("/api/chat", async (req, res) => {
   if (!API_KEY) {
