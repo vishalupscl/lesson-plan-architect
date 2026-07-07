@@ -8,13 +8,15 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+const API_KEY = process.env.OPENAI_API_KEY;
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini-2026-03-17";
+// Optional: constrain reasoning effort on reasoning models (none|low|medium|high).
+const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "low";
 
-app.post("/api/claude", async (req, res) => {
+app.post("/api/chat", async (req, res) => {
   if (!API_KEY) {
     return res.status(500).json({
-      error: "ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key."
+      error: "OPENAI_API_KEY is not set. Copy .env.example to .env and add your key."
     });
   }
 
@@ -24,27 +26,33 @@ app.post("/api/claude", async (req, res) => {
   }
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    // Reasoning models spend tokens on hidden reasoning that also counts against
+    // max_completion_tokens, so add headroom to avoid truncating the visible answer.
+    const outputBudget = (maxTokens || 1024) + 4096;
+
+    const body = {
+      model: MODEL,
+      max_completion_tokens: outputBudget,
+      messages: [{ role: "user", content: prompt }]
+    };
+    if (REASONING_EFFORT) body.reasoning_effort = REASONING_EFFORT;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-        "anthropic-version": "2023-06-01"
+        Authorization: `Bearer ${API_KEY}`
       },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: maxTokens || 1024,
-        messages: [{ role: "user", content: prompt }]
-      })
+      body: JSON.stringify(body)
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || "Anthropic API error" });
+      return res.status(response.status).json({ error: data.error?.message || "OpenAI API error" });
     }
 
-    const text = (data.content || []).map((b) => b.text || "").join("\n");
+    const text = (data.choices || []).map((c) => c.message?.content || "").join("\n");
     res.json({ text });
   } catch (err) {
     res.status(500).json({ error: err.message || "Unexpected server error" });
@@ -53,6 +61,6 @@ app.post("/api/claude", async (req, res) => {
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => {
-  console.log(`Claude proxy running on http://localhost:${PORT}`);
+  console.log(`ChatGPT proxy running on http://localhost:${PORT}`);
   console.log(`Using model: ${MODEL}`);
 });

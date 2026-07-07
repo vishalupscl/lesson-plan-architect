@@ -6,8 +6,8 @@ review, and lesson plan generation.
 
 ## What's in here
 
-- `src/LessonPlanArchitect.jsx` — the app (same logic as the Claude.ai
-  artifact, with one change: it calls a local proxy instead of Anthropic
+- `src/LessonPlanArchitect.jsx` — the app (same logic as the original
+  artifact, with one change: it calls a local proxy instead of OpenAI
   directly).
 - `src/profile.js` — **Teacher Profile module**: the schema (v1), the
   freehand extraction + struggle-categorisation prompts, the four-layer
@@ -22,8 +22,8 @@ review, and lesson plan generation.
   assembled four-layer prompt, for demos).
 - `src/storage-shim.js` — a localStorage-backed stand-in for the
   `window.storage` API the app was originally written against.
-- `server/index.js` — a small Express server that holds your Anthropic API
-  key and forwards requests to `api.anthropic.com`, so the key never reaches
+- `server/index.js` — a small Express server that holds your OpenAI API
+  key and forwards requests to `api.openai.com`, so the key never reaches
   the browser.
 
 ## The Teacher Profile flow (what this app is for)
@@ -52,7 +52,7 @@ architecture.
 ## 1. Prerequisites
 
 - Node.js 18 or later (`node -v` to check)
-- An Anthropic API key from https://console.anthropic.com/settings/keys
+- An OpenAI API key from https://platform.openai.com/api-keys
 
 ## 2. Install
 
@@ -66,7 +66,7 @@ npm install
 cp .env.example .env
 ```
 
-Open `.env` and paste your key in place of `sk-ant-your-key-here`.
+Open `.env` and paste your key in place of `sk-your-key-here`.
 
 ## 4. Run it
 
@@ -93,10 +93,11 @@ If you'd rather run them in two terminals: `npm run server` in one,
 - **API key safety**: the key lives only in `.env` and is read by the
   Node server — it's never sent to or exposed in the browser. Don't commit
   `.env` (it's already in `.gitignore`).
-- **Model**: defaults to `claude-sonnet-5`. Override with `ANTHROPIC_MODEL`
-  in `.env` if you want a different one (e.g. `claude-opus-4-8` for higher
-  quality generation, or `claude-haiku-4-5-20251001` for cheaper/faster
-  classification calls).
+- **Model**: defaults to `gpt-5.4-mini-2026-03-17`. Override with `OPENAI_MODEL`
+  in `.env` if you want a different one (e.g. `gpt-5.4` for higher
+  quality generation, or `gpt-5.4-nano` for cheaper/faster
+  classification calls). `OPENAI_REASONING_EFFORT` (default `low`) tunes how
+  much hidden reasoning the model does — raise it for tougher generation.
 - **Taxonomy data**: Mathematics is seeded with two entries marked
   `(sample)` so you can see the shape of the data. Delete them from the
   Taxonomy Library tab and add your real Pedagogy Engine library.

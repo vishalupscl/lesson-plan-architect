@@ -28,7 +28,7 @@ const SESSION_FIELDS = [
   ["homework_review", "How you review it"]
 ];
 
-export default function ProfileView({ subjects, taxonomies, callClaude, showToast, masterPrompt }) {
+export default function ProfileView({ subjects, taxonomies, callChatGPT, showToast, masterPrompt }) {
   const [profiles, setProfiles] = useState([]);      // list of {key, profile}
   const [loading, setLoading] = useState(true);
   const [editingKey, setEditingKey] = useState(null); // key of profile open in editor
@@ -69,7 +69,7 @@ export default function ProfileView({ subjects, taxonomies, callClaude, showToas
     return <ProfileEditor
       entry={editing}
       taxonomies={taxonomies}
-      callClaude={callClaude}
+      callChatGPT={callChatGPT}
       showToast={showToast}
       masterPrompt={masterPrompt}
       onSave={async (updated) => { await sset(editing.key, updated); await reload(); showToast("Profile saved"); }}
@@ -144,7 +144,7 @@ function CreateProfile({ subjects, onCancel, onCreate }) {
   );
 }
 
-function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt, onSave, onClose }) {
+function ProfileEditor({ entry, taxonomies, callChatGPT, showToast, masterPrompt, onSave, onClose }) {
   const [p, setP] = useState(() => JSON.parse(JSON.stringify(entry.profile)));
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -169,7 +169,7 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
     if (!text) return;
     setBusy(true);
     try {
-      const out = await callClaude(buildExtractPrompt(section, text), 700);
+      const out = await callChatGPT(buildExtractPrompt(section, text), 700);
       const parsed = safeParse(stripFences(out), null);
       if (parsed) {
         setP(prev => { const n = JSON.parse(JSON.stringify(prev)); n[section] = { ...n[section], ...parsed }; return n; });
@@ -186,7 +186,7 @@ function ProfileEditor({ entry, taxonomies, callClaude, showToast, masterPrompt,
     setBusy(true);
     try {
       const conceptList = []; // concept list would come from curriculum payload; empty is fine (falls to subject/foundational)
-      const out = await callClaude(buildStrugglePrompt(s, p.subject, conceptList), 400);
+      const out = await callChatGPT(buildStrugglePrompt(s, p.subject, conceptList), 400);
       const parsed = safeParse(stripFences(out), null) || { kind: "subject_general" };
       setP(prev => {
         const n = JSON.parse(JSON.stringify(prev));
