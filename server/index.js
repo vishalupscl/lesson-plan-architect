@@ -1,6 +1,11 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distPath = path.join(__dirname, "..", "dist");
 
 dotenv.config();
 
@@ -51,8 +56,22 @@ app.post("/api/claude", async (req, res) => {
   }
 });
 
+// In production, serve the Vite build from the same process as the API proxy.
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(distPath));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(distPath, "index.html"), (err) => {
+      if (err) next(err);
+    });
+  });
+}
+
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => {
-  console.log(`Claude proxy running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Using model: ${MODEL}`);
+  if (process.env.NODE_ENV === "production") {
+    console.log(`Serving static files from ${distPath}`);
+  }
 });
