@@ -1,8 +1,9 @@
-# Lesson Plan Architect
+# Upschool Teacher Profiler
 
-A local, runnable version of the lesson plan architect prototype: taxonomy
-management, teacher response intake, AI-assisted classification, human
-review, and lesson plan generation.
+A standalone onboarding app for capturing teacher teaching style and methodology.
+Teachers build personalised profiles (session flow, teaching moves, student struggles,
+assessment preferences) and export a structured JSON payload for Clarius lesson-plan
+personalisation — no live integration required.
 
 ## What's in here
 
@@ -68,7 +69,7 @@ cp .env.example .env
 
 Open `.env` and paste your key in place of `sk-ant-your-key-here`.
 
-## 4. Run it
+## 4. Run it (development)
 
 ```bash
 npm run dev
@@ -80,6 +81,16 @@ This starts both the Express proxy (port 8787) and the Vite dev server
 ```
 http://localhost:5173
 ```
+
+## 5. Run it (production)
+
+```bash
+npm run build
+npm start
+```
+
+Open `http://localhost:8787` — the Express server serves the built frontend
+and proxies Claude API calls.
 
 If you'd rather run them in two terminals: `npm run server` in one,
 `npm run client` in the other.
