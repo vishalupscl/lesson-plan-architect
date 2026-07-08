@@ -98,9 +98,13 @@ If you'd rather run them in two terminals: `npm run server` in one,
   quality generation, or `gpt-5.4-nano` for cheaper/faster
   classification calls). `OPENAI_REASONING_EFFORT` (default `low`) tunes how
   much hidden reasoning the model does — raise it for tougher generation.
-- **Taxonomy data**: Mathematics is seeded with two entries marked
-  `(sample)` so you can see the shape of the data. Delete them from the
-  Taxonomy Library tab and add your real Pedagogy Engine library.
+- **Taxonomy data**: every default subject (Mathematics, Science, English,
+  Social Science, Literacy) is seeded with sample Session Flows (macro) and
+  Teaching Moves (meso) so the Taxonomy Library and Teacher Profiles tabs
+  have a usable standard library out of the box. Delete or edit them in the
+  Taxonomy Library tab and add your real Pedagogy Engine library. Empty
+  libraries for those subjects are backfilled on next load; custom subjects
+  you add stay empty until you fill them.
 
 ## Going beyond local
 

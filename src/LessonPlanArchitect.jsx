@@ -147,19 +147,80 @@ Follow the school's selected Session Flow (overall class structure) and Teaching
 
 Honour the concept's Type/Case structure where present: a Type is a question family, a Case a sub-question-type reproduced verbatim from source. Enact every Type by name in plain language, use every Case's real content exactly, never invent or merge. Reflect any named Misconception and Achieving Mastery line in notes, objectives and assessment. Weight time by complexity — uniform allocation is a failure state. Assessment stages (pre-test, post-test, revision) are handled in Clarius; keep in-plan checks light.`;
 
-/* ---------------- sample seed data ---------------- */
+/* ---------------- standard seed data (all default subjects) ---------------- */
 
-const SAMPLE_MATH_TAXONOMY = {
-  macros: [
-    { id: "mac-sample-1", name: "Concept-First Flow (sample)", description: "Open with the abstract idea, formalize with notation, then move to worked examples and guided practice before independent work." },
-    { id: "mac-sample-2", name: "Problem-Anchored Flow (sample)", description: "Open with a real or puzzle-like problem, let students struggle briefly, then formalize the concept that solves it, followed by practice." }
-  ],
-  mesos: [
-    { id: "mes-sample-1", name: "Worked Example \u2192 Fade (sample)", description: "Teacher solves a full example, then progressively removes steps for students to fill in, until fully independent.", alignedMacroIds: ["mac-sample-1"] },
-    { id: "mes-sample-2", name: "Think-Pair-Share Derivation (sample)", description: "Students attempt to derive or reason toward the rule individually, compare with a partner, then the class converges on the formal version.", alignedMacroIds: ["mac-sample-2"] },
-    { id: "mes-sample-3", name: "Visual-to-Symbolic Bridge (sample)", description: "Concept is introduced through a diagram or manipulative, then explicitly translated into symbolic or algebraic form.", alignedMacroIds: ["mac-sample-1", "mac-sample-2"] }
-  ]
+const STANDARD_TAXONOMIES = {
+  Mathematics: {
+    macros: [
+      { id: "mac-sample-1", name: "Concept-First Flow (sample)", description: "Open with the abstract idea, formalize with notation, then move to worked examples and guided practice before independent work." },
+      { id: "mac-sample-2", name: "Problem-Anchored Flow (sample)", description: "Open with a real or puzzle-like problem, let students struggle briefly, then formalize the concept that solves it, followed by practice." }
+    ],
+    mesos: [
+      { id: "mes-sample-1", name: "Worked Example \u2192 Fade (sample)", description: "Teacher solves a full example, then progressively removes steps for students to fill in, until fully independent.", alignedMacroIds: ["mac-sample-1"] },
+      { id: "mes-sample-2", name: "Think-Pair-Share Derivation (sample)", description: "Students attempt to derive or reason toward the rule individually, compare with a partner, then the class converges on the formal version.", alignedMacroIds: ["mac-sample-2"] },
+      { id: "mes-sample-3", name: "Visual-to-Symbolic Bridge (sample)", description: "Concept is introduced through a diagram or manipulative, then explicitly translated into symbolic or algebraic form.", alignedMacroIds: ["mac-sample-1", "mac-sample-2"] }
+    ]
+  },
+  Science: {
+    macros: [
+      { id: "mac-sci-1", name: "Phenomenon-First Flow (sample)", description: "Open with a real-world phenomenon or demo, elicit student ideas, then build the scientific explanation and apply it to a new case." },
+      { id: "mac-sci-2", name: "Investigate-Explain Flow (sample)", description: "Students gather evidence through a short investigation, then the class constructs the concept from patterns in the data before practice." }
+    ],
+    mesos: [
+      { id: "mes-sci-1", name: "Predict-Observe-Explain (sample)", description: "Students predict an outcome, observe a demo or result, then revise their explanation against the evidence.", alignedMacroIds: ["mac-sci-1"] },
+      { id: "mes-sci-2", name: "Evidence Card Sort (sample)", description: "Students sort observations or data cards into claim-supporting groups, then articulate the scientific rule that emerges.", alignedMacroIds: ["mac-sci-2"] },
+      { id: "mes-sci-3", name: "Model-Build-Revise (sample)", description: "Students sketch or build an initial model of the system, test it against new evidence, and revise the model together.", alignedMacroIds: ["mac-sci-1", "mac-sci-2"] }
+    ]
+  },
+  English: {
+    macros: [
+      { id: "mac-eng-1", name: "Text-to-Talk Flow (sample)", description: "Open with a short shared text, model close reading, then move into guided discussion and independent response writing." },
+      { id: "mac-eng-2", name: "Genre-Craft Flow (sample)", description: "Study mentor texts for a craft move, co-construct success criteria, then draft and revise with that craft focus." }
+    ],
+    mesos: [
+      { id: "mes-eng-1", name: "Think-Aloud Annotation (sample)", description: "Teacher models annotating a passage aloud, then students annotate a parallel stretch with the same lens.", alignedMacroIds: ["mac-eng-1"] },
+      { id: "mes-eng-2", name: "Sentence Expansion Ladder (sample)", description: "Start from a bare sentence and progressively add clauses, evidence, or craft features until the target form is reached.", alignedMacroIds: ["mac-eng-2"] },
+      { id: "mes-eng-3", name: "Partner Text Rehearsal (sample)", description: "Students rehearse a claim or interpretation with a partner using sentence stems before sharing with the class.", alignedMacroIds: ["mac-eng-1", "mac-eng-2"] }
+    ]
+  },
+  "Social Science": {
+    macros: [
+      { id: "mac-ss-1", name: "Source-Inquiry Flow (sample)", description: "Open with a compelling question, examine primary or secondary sources, then build an evidence-based explanation and apply it." },
+      { id: "mac-ss-2", name: "Concept-Case Flow (sample)", description: "Introduce a civic or historical concept, explore it through a concrete case study, then transfer the concept to a new context." }
+    ],
+    mesos: [
+      { id: "mes-ss-1", name: "Source Corroboration (sample)", description: "Students compare two or more sources on the same event, note agreements and tensions, then form a supported claim.", alignedMacroIds: ["mac-ss-1"] },
+      { id: "mes-ss-2", name: "Cause-Consequence Map (sample)", description: "Students map causes and consequences of an event or policy, then rank which links are strongest and why.", alignedMacroIds: ["mac-ss-2"] },
+      { id: "mes-ss-3", name: "Perspective Swap (sample)", description: "Students restate the same event or issue from two stakeholder viewpoints before converging on a balanced account.", alignedMacroIds: ["mac-ss-1", "mac-ss-2"] }
+    ]
+  },
+  Literacy: {
+    macros: [
+      { id: "mac-lit-1", name: "I-Do We-Do You-Do Flow (sample)", description: "Teacher models the literacy skill, guides shared practice, then releases students to independent application with a quick check." },
+      { id: "mac-lit-2", name: "Decode-to-Meaning Flow (sample)", description: "Build from word or sentence decoding into fluency practice, then into comprehension talk and a short written response." }
+    ],
+    mesos: [
+      { id: "mes-lit-1", name: "Echo then Independent Read (sample)", description: "Students echo a modeled fluent reading, then reread the same stretch independently with a clear accuracy or expression goal.", alignedMacroIds: ["mac-lit-1", "mac-lit-2"] },
+      { id: "mes-lit-2", name: "Word-Building with Meaning (sample)", description: "Students build or sort target words, then use each word in a spoken or written sentence that shows meaning.", alignedMacroIds: ["mac-lit-2"] },
+      { id: "mes-lit-3", name: "Partner Retell with Stems (sample)", description: "After reading, partners retell using sentence stems that force sequence, main idea, or key detail language.", alignedMacroIds: ["mac-lit-1"] }
+    ]
+  }
 };
+
+function emptyTaxonomy() {
+  return { macros: [], mesos: [] };
+}
+
+function isEmptyTaxonomy(tax) {
+  return !tax || ((tax.macros || []).length === 0 && (tax.mesos || []).length === 0);
+}
+
+function standardTaxonomyFor(subject) {
+  const seed = STANDARD_TAXONOMIES[subject];
+  if (!seed) return null;
+  // Deep-clone so callers can mutate without touching the shared seed.
+  return JSON.parse(JSON.stringify(seed));
+}
 
 /* ---------------- pipeline stage helper ---------------- */
 
@@ -668,9 +729,19 @@ export default function LessonPlanArchitect() {
       const tax = {};
       for (const s of subs) {
         const raw = await storageGet(TAXONOMY_PREFIX + slug(s));
-        if (raw) { tax[s] = safeParse(raw, { macros: [], mesos: [] }); }
-        else if (s === "Mathematics") { tax[s] = SAMPLE_MATH_TAXONOMY; await storageSet(TAXONOMY_PREFIX + slug(s), SAMPLE_MATH_TAXONOMY); }
-        else { tax[s] = { macros: [], mesos: [] }; await storageSet(TAXONOMY_PREFIX + slug(s), tax[s]); }
+        const parsed = raw ? safeParse(raw, emptyTaxonomy()) : null;
+        const seed = standardTaxonomyFor(s);
+        // Seed (or backfill empty) standard macros/mesos for every known subject.
+        // Preserve any non-empty library the user already customized.
+        if (parsed && !isEmptyTaxonomy(parsed)) {
+          tax[s] = parsed;
+        } else if (seed) {
+          tax[s] = seed;
+          await storageSet(TAXONOMY_PREFIX + slug(s), seed);
+        } else {
+          tax[s] = parsed || emptyTaxonomy();
+          if (!raw) await storageSet(TAXONOMY_PREFIX + slug(s), tax[s]);
+        }
       }
 
       const keys = await storageListKeys(SUBMISSION_PREFIX);
