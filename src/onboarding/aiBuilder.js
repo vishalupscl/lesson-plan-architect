@@ -448,19 +448,12 @@ export async function buildProfileBody(answers, shared, subject) {
 
 // ---------------- export assembly ----------------
 
-// One export object per teacher + subject (handoff §8.2). Login details are
-// included so the file carries everything collected; pedagogy, uploaded plans
-// and change-log data are deliberately never part of the export (handoff §9).
-export function buildExportObject(account, subject, body) {
-  const full = {
-    version: 1,
-    teacher_id: String(account.email || "").trim().toLowerCase(),
-    teacher_name: trimStr(account.name),
-    email: String(account.email || "").trim().toLowerCase(),
-    school: trimStr(account.school),
-    subject,
-    grades: (account.grades || []).slice().sort((a, b) => a - b),
-    experience_years: toInt(account.experienceYears),
+// The exported file carries ONLY the teaching-style segments. All identity
+// details (teacher, email, school, grades, subject) live in the CMS and
+// travel in the file NAME, never inside the JSON; pedagogy, uploaded plans
+// and change-log data are likewise never part of the export (handoff §9).
+export function buildExportObject(body) {
+  return stripEmpty({
     session_shape: body.session_shape,
     facilitation: body.facilitation,
     context: body.context,
@@ -468,13 +461,7 @@ export function buildExportObject(account, subject, body) {
     assessment_style: body.assessment_style,
     plan_preferences: body.plan_preferences,
     variations: body.variations
-  };
-  const stripped = stripEmpty(full) || {};
-  // Required identity keys survive even if empty-ish (spec: version/teacher_id/subject required).
-  stripped.version = 1;
-  stripped.teacher_id = full.teacher_id;
-  stripped.subject = subject;
-  return stripped;
+  }) || {};
 }
 
 // Also persist into the studio's profile store (profile:{teacherId}:{subjectSlug})

@@ -346,8 +346,7 @@ export default function TeacherOnboarding() {
     setStepIndex(steps.length - 1);
   };
 
-  const exportFor = (subject) =>
-    buildExportObject({ ...account, experienceYears: shared.experienceYears }, subject, built[subject].body);
+  const exportFor = (subject) => buildExportObject(built[subject].body);
 
   const progress = steps.length > 2 ? Math.round((safeIndex / (steps.length - 1)) * 100) : 0;
   const firstName = (account.name.trim().split(/\s+/)[0]) || "Teacher";
@@ -376,6 +375,10 @@ export default function TeacherOnboarding() {
           title="Welcome!"
           sub="Let's set up your teaching profile. Answer a few easy questions about how you teach — it takes about 10 minutes, and it helps us make lesson plans that match your style."
         />
+        <div className="tob-tip">
+          <strong>📱 Before you start: keep this app on your phone</strong>
+          <p>Open your browser menu and choose <em>“Add to Home Screen”</em> (iPhone: Share button → Add to Home Screen). It will open like a normal app whenever you need it.</p>
+        </div>
         <Field label="Your email" placeholder="you@example.com" type="email" inputMode="email"
           value={account.email} onChange={(v) => setAccount({ ...account, email: v })} />
         <label className="tob-field">
@@ -823,10 +826,6 @@ export default function TeacherOnboarding() {
         )) : (
           <div className="tob-note">Your downloads are on the previous screen — tap Back and finish again.</div>
         )}
-        <div className="tob-tip">
-          <strong>📱 Keep this app on your phone</strong>
-          <p>Open your browser menu and choose <em>“Add to Home Screen”</em> (iPhone: Share button → Add to Home Screen). The app will then open like a normal app.</p>
-        </div>
         <button type="button" className="tob-link-btn" onClick={() => setStepIndex(steps.length - 2)}>
           <ArrowLeft size={15} /> Review my answers again
         </button>
