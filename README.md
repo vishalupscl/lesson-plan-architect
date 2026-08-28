@@ -25,8 +25,11 @@ mobile-first, step-wise form a teacher fills on her phone or desktop:
    finishing.
 4. **Download** — one JSON file per subject, named
    `School_Teacher-Name_Grade-6-7_Subject.json`, ready to hand to the
-   backend/Clarius. Profiles are also mirrored into the studio's Teacher
-   Profiles tab.
+   backend/Clarius. The file contains only the teaching-style segments
+   (session_shape, facilitation, context, student_struggles,
+   assessment_style, plan_preferences, variations) — all identity details
+   live in the CMS and travel in the file name, never inside the JSON.
+   Profiles are also mirrored into the studio's Teacher Profiles tab.
 
 The app is installable as a home-screen app (PWA): manifest, icons and a
 service worker are included. Icon PNGs are generated automatically before
