@@ -2,3 +2,7 @@ node_modules
 dist
 .env
 .env.local
+
+# generated at build time by scripts/generate-icons.mjs
+public/icons/
+public/apple-touch-icon.png
