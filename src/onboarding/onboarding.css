@@ -324,6 +324,7 @@ select.tob-input { appearance: auto; height: 50px; }
 }
 
 .tob-primary-btn:active { background: var(--tob-accent-dark); }
+.tob-primary-btn:disabled { opacity: 0.65; cursor: default; }
 
 .tob-secondary-btn {
   display: inline-flex;
@@ -477,6 +478,17 @@ select.tob-input { appearance: auto; height: 50px; }
   color: #7a6a34;
   background: #faf3da;
   border-radius: 12px;
+}
+
+.tob-retry-link {
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--tob-accent-dark);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .tob-tip {
