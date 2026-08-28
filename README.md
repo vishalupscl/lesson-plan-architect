@@ -36,6 +36,23 @@ service worker are included. Icon PNGs are generated automatically before
 `npm run dev` / `npm run build` by `scripts/generate-icons.mjs` (they are
 not committed).
 
+When a teacher finishes, each subject's profile is also **submitted to the
+server's records store** (`POST /api/profiles`, upserted per email+subject).
+
+## Admin records database (`/#admin`)
+
+A password-protected view of every submitted profile across all subjects:
+filter by school / subject / grade, search by name or email, inspect or
+download any entry's JSON (named by the same filename convention), download
+all filtered entries as one file, and delete entries.
+
+- Access requires the **`ADMIN_PASSWORD`** environment variable on the
+  server (`fly secrets set ADMIN_PASSWORD=...` on Fly). Without it, the
+  admin endpoints refuse everyone.
+- Records live in a JSON file under **`DATA_DIR`** (default `server/data/`,
+  git-ignored). On Fly, mount a volume and set `DATA_DIR=/data` so records
+  survive deploys and restarts.
+
 The full studio (taxonomy library, intake, review queue, profiles,
 generation) still exists — open it at `/#studio`.
 

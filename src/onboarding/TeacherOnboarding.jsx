@@ -15,7 +15,7 @@ import {
 import {
   AID_OPTIONS, ASSESSMENT_FIELDS, FACILITATION_FIELDS, GRADES, MEDIUM_OPTIONS,
   ONBOARDING_SUBJECTS, SCHOOLS, SESSION_FIELDS, STRUGGLE_EXAMPLES,
-  buildExportObject, buildProfileBody, exportFileName, saveToStudioStore
+  buildExportObject, buildProfileBody, exportFileName, saveToStudioStore, submitProfileRecord
 } from "./aiBuilder.js";
 import "./onboarding.css";
 
@@ -338,12 +338,43 @@ export default function TeacherOnboarding() {
     setStepIndex(0);
   };
 
-  const finish = async () => {
-    if (!built) return;
+  // null | "sending" | "ok" | "failed" — status of sending the finished
+  // profiles to the school's records store. The sequence token makes sure a
+  // stale submit run can't overwrite the state of a newer one.
+  const [submitState, setSubmitState] = useState(null);
+  const submitSeqRef = useRef(0);
+
+  const runSubmit = async (builtMap) => {
+    const seq = ++submitSeqRef.current;
+    setSubmitState("sending");
+    let allOk = true;
     for (const subject of account.subjects) {
-      await saveToStudioStore({ ...account, experienceYears: shared.experienceYears }, subject, built[subject].body);
+      try {
+        await submitProfileRecord(account, subject, builtMap[subject].body);
+      } catch {
+        allOk = false;
+      }
     }
-    setStepIndex(steps.length - 1);
+    if (seq === submitSeqRef.current) setSubmitState(allOk ? "ok" : "failed");
+  };
+
+  const [finishing, setFinishing] = useState(false);
+  const finishingRef = useRef(false);
+
+  const finish = async () => {
+    if (!built || finishingRef.current) return;
+    finishingRef.current = true;
+    setFinishing(true);
+    try {
+      for (const subject of account.subjects) {
+        await saveToStudioStore({ ...account, experienceYears: shared.experienceYears }, subject, built[subject].body);
+      }
+      setStepIndex(steps.length - 1);
+      runSubmit(built);
+    } finally {
+      finishingRef.current = false;
+      setFinishing(false);
+    }
   };
 
   const exportFor = (subject) => buildExportObject(built[subject].body);
@@ -794,6 +825,16 @@ export default function TeacherOnboarding() {
           title={`All set, ${firstName}!`}
           sub="Your teaching profile is ready. Download the file below and share it with your school coordinator — it's how your lesson plans get personalised to you."
         />
+        {submitState === "sending" ? (
+          <div className="tob-note"><Loader2 size={14} className="tob-spin" /> Sending your profile to your school…</div>
+        ) : submitState === "ok" ? (
+          <div className="tob-tip"><strong>✓ Sent to your school's records.</strong><p>The downloads below are your own copy — you don't have to do anything else.</p></div>
+        ) : submitState === "failed" ? (
+          <div className="tob-note">
+            We couldn't send your profile to the school's records right now. Your downloads below still work — or{" "}
+            <button type="button" className="tob-retry-link" onClick={() => built && runSubmit(built)}>try sending again</button>.
+          </div>
+        ) : null}
         {built ? account.subjects.map((subject) => (
           <div key={subject} className="tob-download-card">
             <div className="tob-download-info">
@@ -883,8 +924,9 @@ export default function TeacherOnboarding() {
             </button>
           ) : null}
           {step.id === "review" ? (
-            <button type="button" className="tob-primary-btn tob-next-btn" onClick={finish}>
-              Looks good — finish <Check size={18} />
+            <button type="button" className="tob-primary-btn tob-next-btn" onClick={finish} disabled={finishing}>
+              {finishing ? <Loader2 size={18} className="tob-spin" /> : null}
+              {finishing ? "Finishing…" : "Looks good — finish"} {finishing ? null : <Check size={18} />}
             </button>
           ) : (
             <button type="button" className="tob-primary-btn tob-next-btn" onClick={goNext}>

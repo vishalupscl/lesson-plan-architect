@@ -464,6 +464,30 @@ export function buildExportObject(body) {
   }) || {};
 }
 
+// Submit one finished profile to the server's records store (the admin
+// database at /#admin). Identity fields ride alongside the profile so the
+// admin can filter by school/subject/grade — they still never enter the
+// profile JSON itself.
+export async function submitProfileRecord(account, subject, body) {
+  const res = await fetch("/api/profiles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teacher_name: trimStr(account.name),
+      email: String(account.email || "").trim().toLowerCase(),
+      school: trimStr(account.school),
+      grades: (account.grades || []).slice().sort((a, b) => a - b),
+      subject,
+      profile: buildExportObject(body)
+    })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Submit failed (${res.status})`);
+  }
+  return true;
+}
+
 // Also persist into the studio's profile store (profile:{teacherId}:{subjectSlug})
 // so coordinators can open onboarded teachers in the existing Teacher Profiles
 // view. An existing profile is updated in place — its change log grows, it is

@@ -6,3 +6,6 @@ dist
 # generated at build time by scripts/generate-icons.mjs
 public/icons/
 public/apple-touch-icon.png
+
+# teacher profile records written by the server
+server/data/
