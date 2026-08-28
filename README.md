@@ -2,10 +2,45 @@
 
 A local, runnable version of the lesson plan architect prototype: taxonomy
 management, teacher response intake, AI-assisted classification, human
-review, and lesson plan generation.
+review, and lesson plan generation — plus a teacher-facing **onboarding
+app** that is now the homepage.
+
+## Teacher Onboarding (the homepage)
+
+Opening the app root (`/`) starts the teacher onboarding flow — a
+mobile-first, step-wise form a teacher fills on her phone or desktop:
+
+1. **Sign in like a form** — email, school (dropdown; "Demo School" until the
+   real list is fed from the backend), name, grades, and subjects. No
+   password. These details name the exported file.
+2. **Plain-language steps** — how a typical class flows, teaching style,
+   classroom context, where students struggle (the three tiers), tests and
+   revision, lesson-plan preferences, and variations. Each answer is saved
+   as she goes, so closing the app and coming back resumes the form.
+3. **AI-built JSON** — on the review screen, every segment of the profile
+   JSON is built by the AI (via the `/api/chat` proxy) from her answers:
+   phrasing cleaned, freehand descriptions split into fields, struggles
+   sorted into tiers. If the API is unreachable the answers are kept
+   verbatim so onboarding always completes. She can edit everything before
+   finishing.
+4. **Download** — one JSON file per subject, named
+   `School_Teacher-Name_Grade-6-7_Subject.json`, ready to hand to the
+   backend/Clarius. Profiles are also mirrored into the studio's Teacher
+   Profiles tab.
+
+The app is installable as a home-screen app (PWA): manifest, icons and a
+service worker are included. Icon PNGs are generated automatically before
+`npm run dev` / `npm run build` by `scripts/generate-icons.mjs` (they are
+not committed).
+
+The full studio (taxonomy library, intake, review queue, profiles,
+generation) still exists — open it at `/#studio`.
 
 ## What's in here
 
+- `src/onboarding/TeacherOnboarding.jsx` — the teacher onboarding wizard
+  (homepage), with `onboarding.css` and `aiBuilder.js` (the AI prompt
+  contract, validation, fallback, and export assembly).
 - `src/LessonPlanArchitect.jsx` — the app (same logic as the original
   artifact, with one change: it calls a local proxy instead of OpenAI
   directly).
