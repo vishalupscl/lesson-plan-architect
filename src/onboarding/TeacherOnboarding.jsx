@@ -444,6 +444,7 @@ export default function TeacherOnboarding() {
             })} />
         </div>
         {formError ? <div className="tob-error" role="alert">{formError}</div> : null}
+        <a className="tob-admin-link" href="#admin">School admin? Open Teacher Records →</a>
       </>
     );
   }

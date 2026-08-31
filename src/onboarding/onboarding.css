@@ -480,6 +480,18 @@ select.tob-input { appearance: auto; height: 50px; }
   border-radius: 12px;
 }
 
+.tob-admin-link {
+  display: block;
+  margin: 6px 0 16px;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--tob-muted);
+  text-decoration: none;
+}
+
+.tob-admin-link:hover { color: var(--tob-accent-dark); text-decoration: underline; }
+
 .tob-retry-link {
   padding: 0;
   font: inherit;
