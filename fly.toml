@@ -8,6 +8,14 @@ primary_region = 'lhr'
 
 [build]
 
+# Persistent disk for the teacher profile records store. Create the volume
+# once (`fly volumes create data --region lhr --size 1`) and set
+# DATA_DIR=/data (`fly secrets set DATA_DIR=/data`) so records survive
+# deploys and restarts.
+[mounts]
+  source = "data"
+  destination = "/data"
+
 [http_service]
   internal_port = 8080
   force_https = true
