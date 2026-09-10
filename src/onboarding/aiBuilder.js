@@ -7,6 +7,11 @@
 // teacher didn't say. If the API is unreachable, a deterministic fallback maps
 // the answers verbatim so onboarding always completes (the app must stay fully
 // usable standalone).
+//
+// The output follows the "Teacher Profile — Standard Objects Reference": seven
+// subject-agnostic objects (context, session_shape, facilitation,
+// student_struggles, assessment_style, plan_preferences, variations). The
+// subject lives in the values, never in the structure.
 
 export const ONBOARDING_SUBJECTS = [
   "Mathematics",
@@ -21,6 +26,8 @@ export const SCHOOLS = ["Demo School"];
 
 export const GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
+// Controlled vocabulary for context.aids_available (the generator only lets
+// sessions reference listed aids).
 export const AID_OPTIONS = [
   "Blackboard",
   "Whiteboard",
@@ -37,9 +44,12 @@ export const MEDIUM_OPTIONS = [
   "English", "Hindi", "Tamil", "Telugu", "Kannada", "Marathi", "Bengali"
 ];
 
+// Session-shape slots in the order a teacher experiences a class. Each entry:
+// [key, plain-language question, generic placeholder].
 export const SESSION_FIELDS = [
   ["opener", "How do you usually start the class?", "e.g., I ask a quick question about the last lesson"],
   ["delivery", "How do you teach the main topic?", "e.g., I explain on the board, then work through one example"],
+  ["notes_giving", "How do students take notes?", "e.g., They copy the numbered steps and the rule from the board"],
   ["aids", "What do you use while teaching?", "e.g., Blackboard, charts, a worksheet"],
   ["checkpoint", "How do you check that students are following?", "e.g., I ask 2–3 students to try one on the board"],
   ["practice_release", "How do students practise in class?", "e.g., They solve questions on their own while I walk around"],
@@ -47,6 +57,80 @@ export const SESSION_FIELDS = [
   ["homework", "What homework do you usually give?", "e.g., 2–3 questions from the same topic"],
   ["homework_review", "How do you check homework?", "e.g., I check a few notebooks the next morning"]
 ];
+
+// The generator's fixed slot order (Standard Objects §2) — the export writes
+// session_shape keys in this order.
+export const EXPORT_SESSION_ORDER = [
+  "homework_review", "opener", "delivery", "notes_giving", "checkpoint",
+  "practice_release", "closer", "homework", "aids"
+];
+
+// Subject-specific example answers for the session slots (from the Standard
+// Objects reference; Literacy follows English with sound/decoding values).
+const SESSION_EXAMPLES = {
+  Mathematics: {
+    homework_review: "e.g., Quick review of homework next morning",
+    opener: "e.g., I model one question fully, thinking aloud",
+    delivery: "e.g., Explain on the board, then one worked example",
+    notes_giving: "e.g., Students copy the numbered steps and the rule",
+    checkpoint: "e.g., 2–3 students try one on the board",
+    practice_release: "e.g., Independent work while I circulate",
+    closer: "e.g., One exit problem",
+    homework: "e.g., 2–3 questions from the same concept",
+    aids: "e.g., Blackboard and a worksheet"
+  },
+  English: {
+    homework_review: "e.g., We discuss two answers in the next class",
+    opener: "e.g., I read the passage aloud once",
+    delivery: "e.g., Discuss with guiding questions, mark key lines",
+    notes_giving: "e.g., Word meanings and key points on the board",
+    checkpoint: "e.g., Point to the line that proves your answer",
+    practice_release: "e.g., Textbook questions on their own",
+    closer: "e.g., One student retells it in their own words",
+    homework: "e.g., Re-read and write short answers",
+    aids: "e.g., Textbook, blackboard, a chart of new words"
+  },
+  Science: {
+    homework_review: "e.g., I check the observation diaries",
+    opener: "e.g., A demonstration or a surprising question",
+    delivery: "e.g., Demo first, then the concept behind it",
+    notes_giving: "e.g., A labelled diagram copied into notebooks",
+    checkpoint: "e.g., Predict the result before we test it",
+    practice_release: "e.g., Worksheet or activity in pairs",
+    closer: "e.g., One-line conclusion of the experiment",
+    homework: "e.g., Draw and label / observe at home",
+    aids: "e.g., Science kit, charts, blackboard"
+  },
+  "Social Science": {
+    homework_review: "e.g., Two students present their answers",
+    opener: "e.g., A map or a source on the board to react to",
+    delivery: "e.g., Build the cause-and-effect chain on the board",
+    notes_giving: "e.g., Timeline and key terms copied from the board",
+    checkpoint: "e.g., Locate it on the map / put these events in order",
+    practice_release: "e.g., Source-based questions individually",
+    closer: "e.g., One-sentence cause-and-effect summary",
+    homework: "e.g., Map work or a short cause-and-effect write-up",
+    aids: "e.g., Maps, charts, blackboard"
+  },
+  Literacy: {
+    homework_review: "e.g., We read yesterday's words together first",
+    opener: "e.g., I say a sound and students find the letter",
+    delivery: "e.g., Sound out a word together, then blend it",
+    notes_giving: "e.g., Students copy the new letters and words",
+    checkpoint: "e.g., Each student reads one word aloud",
+    practice_release: "e.g., Matching words to pictures on their own",
+    closer: "e.g., One student reads a short line to the class",
+    homework: "e.g., Practise reading the new words at home",
+    aids: "e.g., Flash cards, charts, blackboard"
+  }
+};
+
+export function sessionPlaceholder(subject, key) {
+  const bySubject = SESSION_EXAMPLES[subject];
+  if (bySubject && bySubject[key]) return bySubject[key];
+  const field = SESSION_FIELDS.find(([k]) => k === key);
+  return field ? field[2] : "";
+}
 
 export const FACILITATION_FIELDS = [
   ["style", "In one or two lines, what is your way of teaching?", "e.g., I show one example fully, then students try a similar one"],
@@ -89,6 +173,9 @@ export const STRUGGLE_EXAMPLES = {
     basics: "e.g., Some students don't yet know all letter sounds"
   }
 };
+
+export const DETAIL_LEVELS = ["detailed", "brief"];
+export const TONES = ["suggestive", "prescriptive"];
 
 // ---------------- small helpers ----------------
 
@@ -219,8 +306,8 @@ export function deterministicBuild(answers, shared, subject) {
 
   const prefs = answers.prefs || {};
   const plan_preferences = {
-    detail_level: prefs.detail_level === "concise" ? "concise" : "detailed",
-    tone: prefs.tone === "prescriptive" ? "prescriptive" : "suggestive",
+    detail_level: DETAIL_LEVELS.includes(prefs.detail_level) ? prefs.detail_level : "",
+    tone: TONES.includes(prefs.tone) ? prefs.tone : "",
     must_include: (prefs.must_include || []).map(trimStr).filter(Boolean)
   };
 
@@ -233,13 +320,43 @@ export function deterministicBuild(answers, shared, subject) {
   const context = {
     class_size: toInt(shared.classSize),
     aids_available: (shared.aids || []).map(trimStr).filter(Boolean),
-    medium: trimStr(shared.medium)
+    medium: trimStr(shared.medium),
+    years_teaching: toInt(shared.experienceYears)
   };
 
-  return { session_shape, facilitation, context, student_struggles, assessment_style, plan_preferences, variations };
+  return { context, session_shape, facilitation, student_struggles, assessment_style, plan_preferences, variations };
 }
 
-// ---------------- AI build ----------------
+// An all-empty body — the base for a profile extracted from an uploaded
+// document, where the AI's reading is the only source.
+export function emptyBody(subject) {
+  return deterministicBuild({}, {}, subject);
+}
+
+// ---------------- the standard-objects contract (shared prompt text) ----------------
+
+function contractText(subject) {
+  return (
+    `{\n` +
+    `  "context": { "class_size": 0, "aids_available": [""], "medium": "", "years_teaching": 0 },\n` +
+    `  "session_shape": { "homework_review": "", "opener": "", "delivery": "", "notes_giving": "", "checkpoint": "", "practice_release": "", "closer": "", "homework": "", "aids": "" },\n` +
+    `  "facilitation": { "style": "", "engagement": "", "consolidation": "" },\n` +
+    `  "student_struggles": {\n` +
+    `    "concept_specific": [ { "statement": "", "matched_concept_ids": [], "confidence": "high|medium|low", "reviewed": false } ],\n` +
+    `    "subject_general": [ { "statement": "", "applies_to": "" } ],\n` +
+    `    "foundational": [ { "statement": "", "implication": "" } ]\n` +
+    `  },\n` +
+    `  "assessment_style": { "pre_test": "", "post_test": "", "revision": "" },\n` +
+    `  "plan_preferences": { "detail_level": "detailed|brief", "tone": "suggestive|prescriptive", "must_include": [""] },\n` +
+    `  "variations": { "grade_variation": "", "avoids": [""] }\n` +
+    `}\n` +
+    `Meaning of the session_shape slots: homework_review = how homework is checked; opener = how the class starts; delivery = how the main topic is taught; notes_giving = how students take notes; checkpoint = how understanding is checked mid-class; practice_release = how students practise in class; closer = how the class ends; homework = what homework is given; aids = what is used while teaching (free text).\n` +
+    `Struggle tiers: "concept_specific" = tied to particular topics/concepts; "subject_general" = a habit or skill gap across the whole subject; "foundational" = missing earlier-year/prerequisite skills. For concept_specific always use "matched_concept_ids": [] and "reviewed": false (no concept list is available yet); set "confidence" by how clearly a specific topic is named. For subject_general set "applies_to" like "all sessions in ${subject}". For foundational write a one-line "implication": how plan LANGUAGE and scaffolding should adjust — never reducing academic content.\n` +
+    `context.aids_available must use these exact terms where they clearly apply: ${AID_OPTIONS.join(", ")}.\n`
+  );
+}
+
+// ---------------- AI build from the form answers ----------------
 
 function countStruggles(st) {
   return (st.concept_specific || []).length + (st.subject_general || []).length + (st.foundational || []).length;
@@ -265,38 +382,26 @@ export function buildProfilePrompt(answers, shared, subject) {
     if (facIn.fields[key]) lines.push(`- ${key} ("${label}"): ${facIn.fields[key]}`);
   }
   if (facIn.freehand) lines.push(`- described in her own words: ${facIn.freehand}`);
-  lines.push(`CLASSROOM: class_size=${toInt(shared.classSize) ?? "?"}; aids=${(shared.aids || []).join(", ") || "?"}; medium=${trimStr(shared.medium) || "?"}`);
+  lines.push(`CLASSROOM: class_size=${toInt(shared.classSize) ?? "?"}; aids=${(shared.aids || []).join(", ") || "?"}; medium=${trimStr(shared.medium) || "?"}; years_teaching=${toInt(shared.experienceYears) ?? "?"}`);
   lines.push(`STRUGGLES — the teacher entered these under three headings:`);
   (st.topics || []).filter(trimStr).forEach((s) => lines.push(`- [specific topics that trip students] ${trimStr(s)}`));
   (st.habits || []).filter(trimStr).forEach((s) => lines.push(`- [habits/gaps across the whole subject] ${trimStr(s)}`));
   (st.basics || []).filter(trimStr).forEach((s) => lines.push(`- [missing basics from earlier years] ${trimStr(s)}`));
   lines.push(`ASSESSMENT: pre_test=${trimStr(asm.pre_test) || "?"}; post_test=${trimStr(asm.post_test) || "?"}; revision=${trimStr(asm.revision) || "?"}`);
-  lines.push(`PLAN PREFERENCES: detail_level=${prefs.detail_level || "detailed"}; tone=${prefs.tone || "suggestive"}; must_include=${(prefs.must_include || []).join(" | ") || "(none)"}`);
+  lines.push(`PLAN PREFERENCES: detail_level=${prefs.detail_level || "?"}; tone=${prefs.tone || "?"}; must_include=${(prefs.must_include || []).join(" | ") || "(none)"}`);
   lines.push(`VARIATIONS: grade_variation=${trimStr(va.grade_variation) || "?"}; avoids=${(va.avoids || []).join(" | ") || "(none)"}`);
 
   return (
-    `You turn a teacher's onboarding answers into the segments of a Teacher Profile JSON that a lesson-plan generator will read.\n` +
+    `You turn a teacher's onboarding answers into the standard objects of a Teacher Profile JSON that a lesson-plan generator will read.\n` +
     `Return ONLY valid JSON — no markdown, no commentary — with exactly these top-level keys:\n` +
-    `{\n` +
-    `  "session_shape": { "opener": "", "delivery": "", "aids": "", "checkpoint": "", "practice_release": "", "closer": "", "homework": "", "homework_review": "" },\n` +
-    `  "facilitation": { "style": "", "engagement": "", "consolidation": "" },\n` +
-    `  "context": { "class_size": 0, "aids_available": [""], "medium": "" },\n` +
-    `  "student_struggles": {\n` +
-    `    "concept_specific": [ { "statement": "", "matched_concept_ids": [], "confidence": "high|medium|low", "reviewed": false } ],\n` +
-    `    "subject_general": [ { "statement": "", "applies_to": "" } ],\n` +
-    `    "foundational": [ { "statement": "", "implication": "" } ]\n` +
-    `  },\n` +
-    `  "assessment_style": { "pre_test": "", "post_test": "", "revision": "" },\n` +
-    `  "plan_preferences": { "detail_level": "", "tone": "", "must_include": [""] },\n` +
-    `  "variations": { "grade_variation": "", "avoids": [""] }\n` +
-    `}\n\n` +
-    `Rules:\n` +
+    contractText(subject) +
+    `\nRules:\n` +
     `- Preserve the teacher's meaning and voice. Lightly clean grammar and phrasing into short, clear directive strings. NEVER invent practices, aids, numbers or struggles she did not state.\n` +
-    `- Anything she "described in her own words" must be split into the right fields of that segment.\n` +
+    `- Anything she "described in her own words" must be split into the right slots of that segment.\n` +
     `- Leave a field as "" (or omit it) when she said nothing about it. Do not fill gaps with generic teaching advice.\n` +
-    `- STRUGGLES: include every entered struggle exactly once. Keep it under the tier of its heading unless it clearly belongs elsewhere: "concept_specific" = tied to particular topics/concepts; "subject_general" = a habit or skill gap across the whole subject; "foundational" = missing earlier-year/prerequisite skills. For concept_specific always use "matched_concept_ids": [] and "reviewed": false (no concept list is available yet); set "confidence" by how clearly a specific topic is named. For subject_general set "applies_to" like "all sessions in ${subject}". For foundational write a one-line "implication": how plan LANGUAGE and scaffolding should adjust — never reducing academic content.\n` +
-    `- "plan_preferences.detail_level" and "tone" must echo the given values verbatim; tidy "must_include" items into short phrases.\n` +
-    `- "context.class_size" must be the given number (or omit it); echo aids and medium.\n\n` +
+    `- STRUGGLES: include every entered struggle exactly once. Keep it under the tier of its heading unless it clearly belongs elsewhere.\n` +
+    `- "plan_preferences.detail_level" and "tone" must echo the given values verbatim (omit when "?"); tidy "must_include" items into short phrases.\n` +
+    `- "context" values must echo the given numbers, aids and medium (omit any "?").\n\n` +
     `TEACHER'S ANSWERS:\n${lines.join("\n")}`
   );
 }
@@ -348,8 +453,12 @@ function vStrArray(v) {
   return Array.isArray(v) ? v.map(vStr).filter(Boolean) : [];
 }
 
+function isPlainObject(v) {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
 function vStruggles(obj, subject) {
-  if (!obj || typeof obj !== "object") return null;
+  if (!isPlainObject(obj)) return null;
   const cs = Array.isArray(obj.concept_specific) ? obj.concept_specific : [];
   const sg = Array.isArray(obj.subject_general) ? obj.subject_general : [];
   const fo = Array.isArray(obj.foundational) ? obj.foundational : [];
@@ -371,73 +480,90 @@ function vStruggles(obj, subject) {
   };
 }
 
+// Merge a validated AI object over a base body, segment by segment. Returns
+// how many segments were accepted. Options:
+//   sessionFromFreehand / facFromFreehand — the base holds one big dump in a
+//     single field, so the AI's split is authoritative instead of per-field;
+//   requireStruggleCount — only trust the AI's struggle sorting if it kept
+//     every teacher-entered struggle (none dropped, none invented).
+function applyAiSegments(parsed, base, subject, opts = {}) {
+  if (!isPlainObject(parsed)) return 0;
+  let accepted = 0;
+
+  // Field-by-field: an AI value wins, but a field the AI left empty falls
+  // back to what the teacher typed in that exact field — polish, never erase.
+  const mergeFields = (aiObj, baseObj) => {
+    const merged = {};
+    for (const k of Object.keys(baseObj)) merged[k] = (aiObj && aiObj[k]) || baseObj[k];
+    return merged;
+  };
+
+  const ss = vStrObj(parsed.session_shape, SESSION_FIELDS.map(([k]) => k));
+  if (ss) { base.session_shape = opts.sessionFromFreehand ? ss : mergeFields(ss, base.session_shape); accepted++; }
+
+  const fac = vStrObj(parsed.facilitation, ["style", "engagement", "consolidation"]);
+  if (fac) { base.facilitation = opts.facFromFreehand ? fac : mergeFields(fac, base.facilitation); accepted++; }
+
+  if (isPlainObject(parsed.context)) {
+    base.context = {
+      class_size: toInt(parsed.context.class_size) ?? base.context.class_size,
+      aids_available: vStrArray(parsed.context.aids_available).length
+        ? vStrArray(parsed.context.aids_available) : base.context.aids_available,
+      medium: vStr(parsed.context.medium) || base.context.medium,
+      years_teaching: toInt(parsed.context.years_teaching) ?? base.context.years_teaching
+    };
+    accepted++;
+  }
+
+  const st = vStruggles(parsed.student_struggles, subject);
+  if (st && (!opts.requireStruggleCount || countStruggles(st) === countStruggles(base.student_struggles))) {
+    base.student_struggles = st;
+    accepted++;
+  }
+
+  const asm = vStrObj(parsed.assessment_style, ["pre_test", "post_test", "revision"]);
+  if (asm) { base.assessment_style = mergeFields(asm, base.assessment_style); accepted++; }
+
+  if (isPlainObject(parsed.plan_preferences)) {
+    base.plan_preferences = {
+      detail_level: DETAIL_LEVELS.includes(parsed.plan_preferences.detail_level)
+        ? parsed.plan_preferences.detail_level : base.plan_preferences.detail_level,
+      tone: TONES.includes(parsed.plan_preferences.tone)
+        ? parsed.plan_preferences.tone : base.plan_preferences.tone,
+      must_include: vStrArray(parsed.plan_preferences.must_include).length
+        ? vStrArray(parsed.plan_preferences.must_include) : base.plan_preferences.must_include
+    };
+    accepted++;
+  }
+
+  if (isPlainObject(parsed.variations)) {
+    base.variations = {
+      grade_variation: vStr(parsed.variations.grade_variation) || base.variations.grade_variation,
+      avoids: vStrArray(parsed.variations.avoids).length
+        ? vStrArray(parsed.variations.avoids) : base.variations.avoids
+    };
+    accepted++;
+  }
+
+  return accepted;
+}
+
 // Build the profile body for one subject. Tries the AI for every segment and
 // merges each valid segment over the deterministic base; any segment the AI
 // gets wrong falls back to the teacher's verbatim answers.
 export async function buildProfileBody(answers, shared, subject) {
   const base = deterministicBuild(answers, shared, subject);
-  // When the teacher described a step in her own words, the deterministic base
-  // holds the whole description dumped into one field — that dump must never
-  // leak back per-field once the AI has split it.
-  const sessionFromFreehand = !!activeSessionInput(answers.session).freehand;
-  const facFromFreehand = !!activeFacilitationInput(answers.facilitation).freehand;
   let accepted = 0;
   let aiError = null;
 
   try {
     const raw = await callChatProxy(buildProfilePrompt(answers, shared, subject), 2000);
     const parsed = JSON.parse(stripFences(raw));
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      // Merge field-by-field: an AI value wins, but a field the AI left empty
-      // falls back to what the teacher typed in that exact field — the AI can
-      // polish, never erase. (Not applicable to freehand: there the AI's split
-      // is authoritative, since the base is one big dump.)
-      const mergeFields = (aiObj, baseObj) => {
-        const merged = {};
-        for (const k of Object.keys(baseObj)) merged[k] = (aiObj && aiObj[k]) || baseObj[k];
-        return merged;
-      };
-      const ss = vStrObj(parsed.session_shape, SESSION_FIELDS.map(([k]) => k));
-      if (ss) { base.session_shape = sessionFromFreehand ? ss : mergeFields(ss, base.session_shape); accepted++; }
-      const fac = vStrObj(parsed.facilitation, ["style", "engagement", "consolidation"]);
-      if (fac) { base.facilitation = facFromFreehand ? fac : mergeFields(fac, base.facilitation); accepted++; }
-      if (parsed.context && typeof parsed.context === "object" && !Array.isArray(parsed.context)) {
-        base.context = {
-          class_size: toInt(parsed.context.class_size) ?? base.context.class_size,
-          aids_available: vStrArray(parsed.context.aids_available).length
-            ? vStrArray(parsed.context.aids_available) : base.context.aids_available,
-          medium: vStr(parsed.context.medium) || base.context.medium
-        };
-        accepted++;
-      }
-      const st = vStruggles(parsed.student_struggles, subject);
-      // Only trust the AI's sorting if it kept every struggle (none dropped, none invented).
-      if (st && countStruggles(st) === countStruggles(base.student_struggles)) {
-        base.student_struggles = st;
-        accepted++;
-      }
-      const asm = vStrObj(parsed.assessment_style, ["pre_test", "post_test", "revision"]);
-      if (asm) { base.assessment_style = mergeFields(asm, base.assessment_style); accepted++; }
-      if (parsed.plan_preferences && typeof parsed.plan_preferences === "object" && !Array.isArray(parsed.plan_preferences)) {
-        base.plan_preferences = {
-          detail_level: ["detailed", "concise"].includes(parsed.plan_preferences.detail_level)
-            ? parsed.plan_preferences.detail_level : base.plan_preferences.detail_level,
-          tone: ["suggestive", "prescriptive"].includes(parsed.plan_preferences.tone)
-            ? parsed.plan_preferences.tone : base.plan_preferences.tone,
-          must_include: vStrArray(parsed.plan_preferences.must_include).length
-            ? vStrArray(parsed.plan_preferences.must_include) : base.plan_preferences.must_include
-        };
-        accepted++;
-      }
-      if (parsed.variations && typeof parsed.variations === "object" && !Array.isArray(parsed.variations)) {
-        base.variations = {
-          grade_variation: vStr(parsed.variations.grade_variation) || base.variations.grade_variation,
-          avoids: vStrArray(parsed.variations.avoids).length
-            ? vStrArray(parsed.variations.avoids) : base.variations.avoids
-        };
-        accepted++;
-      }
-    }
+    accepted = applyAiSegments(parsed, base, subject, {
+      sessionFromFreehand: !!activeSessionInput(answers.session).freehand,
+      facFromFreehand: !!activeFacilitationInput(answers.facilitation).freehand,
+      requireStruggleCount: true
+    });
     if (!accepted) aiError = "The AI response couldn't be used.";
   } catch (err) {
     aiError = err && err.message ? err.message : "AI unavailable";
@@ -446,17 +572,87 @@ export async function buildProfileBody(answers, shared, subject) {
   return { body: base, aiUsed: accepted > 0, aiError };
 }
 
+// ---------------- AI extraction from an uploaded document ----------------
+
+// Keep the prompt bounded — a filled form is a few pages; anything beyond
+// this is almost certainly the wrong document.
+const MAX_DOCUMENT_CHARS = 40000;
+
+export function buildDocumentExtractionPrompt(text, subjects) {
+  const doc = String(text || "").slice(0, MAX_DOCUMENT_CHARS);
+  const subjectList = subjects.map((s) => `"${s}"`).join(", ");
+  return (
+    `A teacher filled in a form (or wrote a document) describing how she teaches. Extract it into the standard objects of a Teacher Profile JSON that a lesson-plan generator will read.\n` +
+    `The teacher teaches these subjects: ${subjectList}. Return ONLY valid JSON — no markdown, no commentary — shaped exactly like this, with one entry per subject name given above:\n` +
+    `{ "subjects": { "<subject name>": <approach>, ... } }\n` +
+    `where each <approach> has exactly these keys:\n` +
+    contractText(subjects[0] || "the subject") +
+    `\nRules:\n` +
+    `- Use ONLY what the document states. Preserve the teacher's meaning and voice; lightly clean phrasing into short, clear directive strings. NEVER invent practices, aids, numbers or struggles that are not in the document.\n` +
+    `- If the document describes the subjects separately, extract each subject's own answers. If it describes one way of teaching without separating subjects, give every listed subject the same approach.\n` +
+    `- Leave a field as "" (or omit it) when the document says nothing about it. Do not fill gaps with generic teaching advice.\n` +
+    `- Put every student struggle the document mentions exactly once, in the tier it belongs to.\n` +
+    `- "plan_preferences.detail_level" must be "detailed" or "brief" and "tone" must be "suggestive" or "prescriptive" — only when the document makes the preference clear; otherwise omit.\n` +
+    `- "context.class_size" and "context.years_teaching" are numbers, only when stated.\n\n` +
+    `DOCUMENT TEXT:\n"""\n${doc}\n"""`
+  );
+}
+
+// Turn extracted document text into a built profile per subject. Throws when
+// the AI is unavailable — there is no deterministic fallback for free text.
+export async function extractProfilesFromDocument(text, subjects) {
+  if (!trimStr(text)) throw new Error("The file has no readable text.");
+  let raw;
+  try {
+    raw = await callChatProxy(buildDocumentExtractionPrompt(text, subjects), Math.min(6000, 1000 + 1500 * subjects.length));
+  } catch {
+    // Teachers shouldn't see server/API details — the retry advice is what helps.
+    throw new Error("We couldn't read your form automatically right now. Please try again in a moment, or answer the questions instead.");
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(stripFences(raw));
+  } catch {
+    throw new Error("We couldn't understand the AI's reading of the form. Please try again.");
+  }
+  const bySubject = isPlainObject(parsed) && isPlainObject(parsed.subjects) ? parsed.subjects : null;
+  if (!bySubject) throw new Error("We couldn't understand the AI's reading of the form. Please try again.");
+
+  // Tolerate case/spacing differences in the subject names the AI echoes back.
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const result = {};
+  let anyAccepted = 0;
+  for (const subject of subjects) {
+    const key = Object.keys(bySubject).find((k) => norm(k) === norm(subject));
+    const body = emptyBody(subject);
+    const accepted = key ? applyAiSegments(bySubject[key], body, subject, {
+      sessionFromFreehand: true, facFromFreehand: true, requireStruggleCount: false
+    }) : 0;
+    anyAccepted += accepted;
+    result[subject] = { body, aiUsed: accepted > 0, aiError: accepted ? null : "Nothing was found for this subject in the form." };
+  }
+  if (!anyAccepted) throw new Error("We couldn't find any teaching details in this file. Is it the filled teacher form?");
+  return result;
+}
+
 // ---------------- export assembly ----------------
 
-// The exported file carries ONLY the teaching-style segments. All identity
-// details (teacher, email, school, grades, subject) live in the CMS and
-// travel in the file NAME, never inside the JSON; pedagogy, uploaded plans
-// and change-log data are likewise never part of the export (handoff §9).
+function orderedSessionShape(ss) {
+  const out = {};
+  for (const k of EXPORT_SESSION_ORDER) out[k] = ss ? ss[k] : undefined;
+  return out;
+}
+
+// The exported file is the "approach" object of the Standard Objects
+// Reference: the seven subject-agnostic objects, nothing else. All identity
+// details (teacher, email, school, grades, subject) live in the CMS and travel
+// in the file NAME, never inside the JSON. The CMS wraps this object with its
+// own subject_id when storing it under teacher_info.lesson_plan_approach[].
 export function buildExportObject(body) {
   return stripEmpty({
-    session_shape: body.session_shape,
-    facilitation: body.facilitation,
     context: body.context,
+    session_shape: orderedSessionShape(body.session_shape),
+    facilitation: body.facilitation,
     student_struggles: body.student_struggles,
     assessment_style: body.assessment_style,
     plan_preferences: body.plan_preferences,
@@ -519,7 +715,7 @@ export async function saveToStudioStore(account, subject, body) {
       });
     prof.teacher_name = trimStr(account.name) || prof.teacher_name;
     if ((account.grades || []).length) prof.grades = account.grades.slice().sort((a, b) => a - b);
-    prof.experience_years = toInt(account.experienceYears) ?? prof.experience_years;
+    prof.experience_years = body.context.years_teaching ?? toInt(account.experienceYears) ?? prof.experience_years;
     prof.session_shape = { ...prof.session_shape, ...nonEmpty(body.session_shape) };
     prof.facilitation = { ...prof.facilitation, ...nonEmpty(body.facilitation) };
     prof.context = { ...prof.context, ...nonEmpty(body.context) };
@@ -533,8 +729,8 @@ export async function saveToStudioStore(account, subject, body) {
       ...prof.plan_preferences,
       ...nonEmpty(body.plan_preferences),
       // The studio editor's options are "detailed"/"lean"; the export keeps
-      // the spec's "concise" wording, only the mirror translates.
-      detail_level: body.plan_preferences.detail_level === "concise" ? "lean" : "detailed"
+      // the contract's "brief" wording, only the mirror translates.
+      detail_level: body.plan_preferences.detail_level === "brief" ? "lean" : "detailed"
     };
     prof.variations = { ...prof.variations, ...nonEmpty(body.variations) };
     prof.change_log = [
