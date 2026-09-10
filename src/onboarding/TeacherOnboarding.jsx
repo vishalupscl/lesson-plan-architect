@@ -9,17 +9,21 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, CheckCircle2, Download, Loader2, Pencil,
-  PlusCircle, Share2, Sparkles, Trash2, X
+  ArrowLeft, ArrowRight, Check, CheckCircle2, Download, FileText, Loader2, Lock, Pencil,
+  PlusCircle, Share2, Sparkles, Trash2, Upload, X
 } from "lucide-react";
 import {
   AID_OPTIONS, ASSESSMENT_FIELDS, FACILITATION_FIELDS, GRADES, MEDIUM_OPTIONS,
   ONBOARDING_SUBJECTS, SCHOOLS, SESSION_FIELDS, STRUGGLE_EXAMPLES,
-  buildExportObject, buildProfileBody, exportFileName, saveToStudioStore, submitProfileRecord
+  buildExportObject, buildProfileBody, exportFileName, extractProfilesFromDocument,
+  saveToStudioStore, sessionPlaceholder, submitProfileRecord
 } from "./aiBuilder.js";
+import { extractTextFromFile } from "./documentExtract.js";
 import "./onboarding.css";
 
-const DRAFT_KEY = "lpa:onboarding:draft:v1";
+// v2: the step list and the profile shape changed (upload path, notes slot,
+// "brief" detail level) — older drafts are simply not restored.
+const DRAFT_KEY = "lpa:onboarding:draft:v2";
 
 // JSON-safe deep clone — structuredClone is missing on older phone browsers.
 function deepClone(v) {
@@ -30,7 +34,7 @@ function emptyAnswers() {
   return {
     session: {
       mode: "fields",
-      opener: "", delivery: "", aids: "", checkpoint: "",
+      opener: "", delivery: "", notes_giving: "", aids: "", checkpoint: "",
       practice_release: "", closer: "", homework: "", homework_review: "",
       freehand: ""
     },
@@ -42,8 +46,15 @@ function emptyAnswers() {
   };
 }
 
-function buildSteps(subjects) {
-  const steps = [{ id: "welcome" }, { id: "classroom" }];
+// The flow branches after sign-in: answer the questions step by step, or
+// upload a filled form and jump straight to the review of what the AI read.
+function buildSteps(subjects, method) {
+  const steps = [{ id: "welcome" }, { id: "method" }];
+  if (method === "upload") {
+    steps.push({ id: "review" }, { id: "done" });
+    return steps;
+  }
+  steps.push({ id: "classroom" });
   subjects.forEach((subject, index) => {
     if (subjects.length > 1) steps.push({ id: "subject-intro", subject, index });
     steps.push({ id: "session", subject });
@@ -237,11 +248,13 @@ export default function TeacherOnboarding() {
     classSize: "", aids: [], medium: "", experienceYears: ""
   });
   const [answers, setAnswers] = useState(draft?.answers || {});
+  // "questions" (step-by-step form) or "upload" (a filled form the AI reads).
+  const [method, setMethod] = useState(draft?.method || "");
   // Restore the saved step; without a saved built profile, never straight
   // onto the final "done" screen — land on review so it rebuilds.
   const [stepIndex, setStepIndex] = useState(() => {
     if (!draft) return 0;
-    const len = buildSteps(draft.account?.subjects || []).length;
+    const len = buildSteps(draft.account?.subjects || [], draft.method || "").length;
     const max = draft.built ? len - 1 : Math.max(len - 2, 0);
     return Math.min(draft.stepIndex || 0, Math.max(max, 0));
   });
@@ -252,16 +265,20 @@ export default function TeacherOnboarding() {
   // edits made on the review screen survive a reload or a killed tab.
   const [built, setBuilt] = useState(draft?.built || null);
 
-  const steps = useMemo(() => buildSteps(account.subjects), [account.subjects]);
+  // idle | reading | extracting | error — progress of the uploaded-form path.
+  const [uploadState, setUploadState] = useState({ status: "idle", message: "" });
+
+  const steps = useMemo(() => buildSteps(account.subjects, method), [account.subjects, method]);
   const safeIndex = Math.min(stepIndex, steps.length - 1);
   const step = steps[safeIndex];
+  const reviewIndex = steps.findIndex((s) => s.id === "review");
 
   // Persist the draft on every change so a teacher can close the app and resume.
   useEffect(() => {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ account, shared, answers, built, stepIndex: safeIndex }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ account, shared, answers, method, built, stepIndex: safeIndex }));
     } catch { /* storage full/blocked — the form still works for this visit */ }
-  }, [account, shared, answers, built, safeIndex]);
+  }, [account, shared, answers, method, built, safeIndex]);
 
   // Answers changed → any previously built profile is stale. Skipped on mount
   // so a built profile restored from the draft isn't wiped immediately.
@@ -278,9 +295,10 @@ export default function TeacherOnboarding() {
 
   // Arriving at review → let the AI structure every segment of the JSON.
   // `building` must NOT be a dependency: flipping it would re-run the effect
-  // and its cleanup would cancel the in-flight build.
+  // and its cleanup would cancel the in-flight build. On the upload path the
+  // profile comes from the document instead, so nothing is built from answers.
   useEffect(() => {
-    if (step?.id !== "review" || built) return;
+    if (step?.id !== "review" || built || method === "upload") return;
     let cancelled = false;
     (async () => {
       setBuilding(true);
@@ -291,7 +309,24 @@ export default function TeacherOnboarding() {
       if (!cancelled) { setBuilt(result); setBuilding(false); }
     })();
     return () => { cancelled = true; };
-  }, [step?.id, built, account.subjects, answers, shared]);
+  }, [step?.id, built, method, account.subjects, answers, shared]);
+
+  // The uploaded-form path: read the file in the browser, let the AI extract
+  // the standard objects for every subject, then jump to review.
+  const handleUpload = async (file) => {
+    if (!file) return;
+    setUploadState({ status: "reading", message: `Reading ${file.name}…` });
+    try {
+      const text = await extractTextFromFile(file);
+      setUploadState({ status: "extracting", message: "Organising what you wrote into your profile…" });
+      const result = await extractProfilesFromDocument(text, account.subjects);
+      setBuilt(result);
+      setUploadState({ status: "idle", message: "" });
+      setStepIndex(reviewIndex);
+    } catch (err) {
+      setUploadState({ status: "error", message: (err && err.message) || "Something went wrong reading that file." });
+    }
+  };
 
   const ans = step?.subject ? (answers[step.subject] || emptyAnswers()) : null;
   const setAns = (fn) => {
@@ -324,6 +359,10 @@ export default function TeacherOnboarding() {
       const err = validateWelcome();
       if (err) { setFormError(err); return; }
     }
+    if (step.id === "method") {
+      if (!method) { setFormError("Please choose one of the two options."); return; }
+      if (method === "upload" && !built) { setFormError("Please upload your filled form to continue."); return; }
+    }
     setStepIndex(Math.min(safeIndex + 1, steps.length - 1));
   };
   const goBack = () => setStepIndex(Math.max(safeIndex - 1, 0));
@@ -334,7 +373,9 @@ export default function TeacherOnboarding() {
     setAccount({ email: "", school: SCHOOLS[0], name: "", grades: [], subjects: [] });
     setShared({ classSize: "", aids: [], medium: "", experienceYears: "" });
     setAnswers({});
+    setMethod("");
     setBuilt(null);
+    setUploadState({ status: "idle", message: "" });
     setStepIndex(0);
   };
 
@@ -448,6 +489,54 @@ export default function TeacherOnboarding() {
     );
   }
 
+  if (step.id === "method") {
+    const busy = uploadState.status === "reading" || uploadState.status === "extracting";
+    content = (
+      <>
+        <StepIntro
+          emoji="🧭"
+          title="How would you like to do this?"
+          sub="Both ways end with the same profile. Pick whichever is easier for you."
+        />
+        <ChoiceCards value={method}
+          onChange={(v) => { setMethod(v); setUploadState({ status: "idle", message: "" }); }}
+          options={[
+            { value: "questions", title: "Answer questions here", desc: "About 10 minutes. Short, simple questions, one screen at a time." },
+            { value: "upload", title: "Upload my filled form", desc: "Already filled the teacher form? Upload the PDF and we'll read it for you." }
+          ]} />
+        {method === "upload" ? (
+          <div className="tob-upload">
+            <label className={`tob-upload-drop ${busy ? "tob-upload-busy" : ""}`}>
+              <input
+                type="file"
+                accept=".pdf,.txt,.md,application/pdf,text/plain"
+                disabled={busy}
+                onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; handleUpload(f); }}
+              />
+              {busy ? <Loader2 size={26} className="tob-spin" /> : <Upload size={26} />}
+              <strong>{busy ? uploadState.message : "Choose your filled form (PDF)"}</strong>
+              {!busy ? <span>Tap to pick the file from your phone or computer. PDF or text file, up to 15 MB.</span> : null}
+            </label>
+            <div className="tob-hint" style={{ marginTop: 10 }}>
+              <FileText size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+              The PDF must contain typed text — a photo or scan of a handwritten form can't be read yet.
+            </div>
+            {uploadState.status === "error" ? (
+              <div className="tob-error" role="alert">
+                {uploadState.message}{" "}
+                <button type="button" className="tob-retry-link" onClick={() => setMethod("questions")}>Answer the questions instead</button>
+              </div>
+            ) : null}
+            {built && uploadState.status === "idle" ? (
+              <div className="tob-tip"><strong>✓ Your form was read.</strong><p>Tap Next to check what we understood.</p></div>
+            ) : null}
+          </div>
+        ) : null}
+        {formError ? <div className="tob-error" role="alert">{formError}</div> : null}
+      </>
+    );
+  }
+
   if (step.id === "classroom") {
     content = (
       <>
@@ -514,8 +603,8 @@ export default function TeacherOnboarding() {
         />
         <ModeSwitch mode={ans.session.mode} onChange={(m) => setAns((a) => { a.session.mode = m; return a; })} />
         {ans.session.mode === "fields" ? (
-          SESSION_FIELDS.map(([key, label, ph]) => (
-            <Field key={key} label={label} placeholder={ph} value={ans.session[key]}
+          SESSION_FIELDS.map(([key, label]) => (
+            <Field key={key} label={label} placeholder={sessionPlaceholder(step.subject, key)} value={ans.session[key] || ""}
               onChange={(v) => setAns((a) => { a.session[key] = v; return a; })} />
           ))
         ) : (
@@ -621,7 +710,7 @@ export default function TeacherOnboarding() {
             onChange={(v) => setAns((a) => { a.prefs.detail_level = v; return a; })}
             options={[
               { value: "detailed", title: "Detailed", desc: "Step-by-step guidance I can follow" },
-              { value: "concise", title: "Short & simple", desc: "Just the key points, I'll fill the rest" }
+              { value: "brief", title: "Short & simple", desc: "Just the key points, I'll fill the rest" }
             ]} />
         </div>
         <div className="tob-field">
@@ -668,7 +757,13 @@ export default function TeacherOnboarding() {
   }
 
   if (step.id === "review") {
-    content = building || !built ? (
+    content = (method === "upload" && !built) ? (
+      <div className="tob-building">
+        <h1 className="tob-title">Your form hasn't been read yet</h1>
+        <p className="tob-sub">Go back one step and upload your filled form, and we'll organise it for you.</p>
+        <button type="button" className="tob-secondary-btn" onClick={goBack}><Upload size={16} /> Upload the form</button>
+      </div>
+    ) : building || !built ? (
       <div className="tob-building">
         <Loader2 size={28} className="tob-spin" />
         <h1 className="tob-title">Putting your profile together…</h1>
@@ -726,6 +821,11 @@ export default function TeacherOnboarding() {
                 </div>
                 <Field label="Language of teaching" value={body.context.medium || ""}
                   onChange={(v) => updateBody(subject, (bd) => { bd.context.medium = v; })} />
+                <Field label="Years of teaching" inputMode="numeric" value={body.context.years_teaching ?? ""}
+                  onChange={(v) => updateBody(subject, (bd) => {
+                    const n = parseInt(v, 10);
+                    bd.context.years_teaching = Number.isFinite(n) && n > 0 ? n : null;
+                  })} />
               </details>
 
               <details className="tob-section">
@@ -781,7 +881,7 @@ export default function TeacherOnboarding() {
                     onChange={(v) => updateBody(subject, (bd) => { bd.plan_preferences.detail_level = v; })}
                     options={[
                       { value: "detailed", title: "Detailed", desc: "Step-by-step guidance" },
-                      { value: "concise", title: "Short & simple", desc: "Just the key points" }
+                      { value: "brief", title: "Short & simple", desc: "Just the key points" }
                     ]} />
                 </div>
                 <div className="tob-field">
@@ -890,7 +990,11 @@ export default function TeacherOnboarding() {
             <span className="tob-brand-dot" aria-hidden>📖</span>
             <span>Teacher Profile</span>
           </div>
-          {!isWelcome && step.id !== "done" ? (
+          {isWelcome ? (
+            <a className="tob-admin-btn" href="#admin" title="School admin: open the records database (password required)">
+              <Lock size={13} /> Admin
+            </a>
+          ) : step.id !== "done" ? (
             <span className="tob-step-count">Step {safeIndex + 1} of {steps.length - 1}</span>
           ) : null}
         </header>

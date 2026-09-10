@@ -13,23 +13,32 @@ mobile-first, step-wise form a teacher fills on her phone or desktop:
 1. **Sign in like a form** — email, school (dropdown; "Demo School" until the
    real list is fed from the backend), name, grades, and subjects. No
    password. These details name the exported file.
-2. **Plain-language steps** — how a typical class flows, teaching style,
-   classroom context, where students struggle (the three tiers), tests and
-   revision, lesson-plan preferences, and variations. Each answer is saved
-   as she goes, so closing the app and coming back resumes the form.
-3. **AI-built JSON** — on the review screen, every segment of the profile
-   JSON is built by the AI (via the `/api/chat` proxy) from her answers:
-   phrasing cleaned, freehand descriptions split into fields, struggles
-   sorted into tiers. If the API is unreachable the answers are kept
-   verbatim so onboarding always completes. She can edit everything before
-   finishing.
+2. **Two ways in** — either **answer plain-language steps** (how a typical
+   class flows, teaching style, classroom context, where students struggle
+   in the three tiers, tests and revision, lesson-plan preferences,
+   variations — saved as she goes, so closing the app resumes the form), or
+   **upload a filled form (PDF)**: the text is read in the browser (pdf.js)
+   and the AI extracts every profile object from it — no questions to
+   answer. Scanned/handwritten PDFs are not supported (no OCR yet).
+3. **AI-built JSON** — on the review screen, every object of the profile
+   JSON is built by the AI (via the `/api/chat` proxy) from her answers or
+   her form: phrasing cleaned, freehand descriptions split into slots,
+   struggles sorted into tiers. On the questions path the answers are kept
+   verbatim if the API is unreachable, so onboarding always completes. She
+   can edit everything before finishing.
 4. **Download** — one JSON file per subject, named
    `School_Teacher-Name_Grade-6-7_Subject.json`, ready to hand to the
-   backend/Clarius. The file contains only the teaching-style segments
-   (session_shape, facilitation, context, student_struggles,
-   assessment_style, plan_preferences, variations) — all identity details
-   live in the CMS and travel in the file name, never inside the JSON.
+   backend/Clarius. The file is the **"approach" object of the Teacher
+   Profile Standard Objects Reference**: `context` (incl. `years_teaching`),
+   `session_shape` (slots in generator order, incl. `notes_giving`),
+   `facilitation`, `student_struggles`, `assessment_style`,
+   `plan_preferences` (`detail_level` = `detailed`/`brief`), `variations`.
+   All identity details live in the CMS and travel in the file name, never
+   inside the JSON; the CMS wraps the object with its own `subject_id`.
    Profiles are also mirrored into the studio's Teacher Profiles tab.
+
+The opening page carries a small **🔒 Admin** button — the records database
+for the school, locked behind the admin password (see below).
 
 The app is installable as a home-screen app (PWA): manifest, icons and a
 service worker are included. Icon PNGs are generated automatically before
