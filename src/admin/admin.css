@@ -102,6 +102,55 @@
 }
 .adm-search-box .tob-input { padding-left: 34px; }
 
+/* ---------- schools panel ---------- */
+
+.adm-panel {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--tob-card);
+  border: 1.5px solid var(--tob-accent);
+  border-radius: 14px;
+}
+
+.adm-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15.5px;
+  margin-bottom: 2px;
+}
+
+.adm-panel p { margin: 0 0 12px; }
+
+.adm-school-add {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  max-width: 460px;
+}
+
+.adm-school-add .tob-input { margin-top: 0; padding: 9px 12px; font-size: 14.5px; }
+
+.adm-school-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.adm-school-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 5px 5px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--tob-accent-soft);
+  border-radius: 999px;
+}
+
+.adm-school-chip .adm-icon-btn { width: 26px; height: 26px; }
+
 /* ---------- entry rows ---------- */
 
 .adm-list {

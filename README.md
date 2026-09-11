@@ -10,16 +10,19 @@ app** that is now the homepage.
 Opening the app root (`/`) starts the teacher onboarding flow — a
 mobile-first, step-wise form a teacher fills on her phone or desktop:
 
-1. **Sign in like a form** — email, school (dropdown; "Demo School" until the
-   real list is fed from the backend), name, grades, and subjects. No
-   password. These details name the exported file.
+1. **Sign in like a form** — email, school, name, grades, and subjects. No
+   password. These details name the exported file. The school dropdown is
+   filled from the server (`GET /api/schools`); the admin manages the list,
+   and a teacher whose school is missing can add it from the dropdown.
 2. **Two ways in** — either **answer plain-language steps** (how a typical
    class flows, teaching style, classroom context, where students struggle
    in the three tiers, tests and revision, lesson-plan preferences,
    variations — saved as she goes, so closing the app resumes the form), or
-   **upload a filled form (PDF)**: the text is read in the browser (pdf.js)
-   and the AI extracts every profile object from it — no questions to
-   answer. Scanned/handwritten PDFs are not supported (no OCR yet).
+   **upload a filled form**: a typed PDF is read in the browser (pdf.js) and
+   the text goes to the AI; a **scanned PDF or a photo of the form** has no
+   text layer, so its pages are rendered to images in the browser and read by
+   the vision model — handwriting included. Either way the AI extracts every
+   profile object; no questions to answer.
 3. **AI-built JSON** — on the review screen, every object of the profile
    JSON is built by the AI (via the `/api/chat` proxy) from her answers or
    her form: phrasing cleaned, freehand descriptions split into slots,
@@ -53,7 +56,8 @@ server's records store** (`POST /api/profiles`, upserted per email+subject).
 A password-protected view of every submitted profile across all subjects:
 filter by school / subject / grade, search by name or email, inspect or
 download any entry's JSON (named by the same filename convention), download
-all filtered entries as one file, and delete entries.
+all filtered entries as one file, and delete entries. The **Schools** panel
+manages the list behind the sign-in dropdown (add / remove).
 
 - Access requires the **`ADMIN_PASSWORD`** environment variable on the
   server (`fly secrets set ADMIN_PASSWORD=...` on Fly). Without it, the
