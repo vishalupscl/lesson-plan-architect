@@ -13,7 +13,9 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));
+// Generous enough for the page images of a scanned form (each request is
+// additionally bounded per-endpoint below).
+app.use(express.json({ limit: "24mb" }));
 
 const API_KEY = process.env.OPENAI_API_KEY;
 const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini-2026-03-17";
@@ -25,6 +27,7 @@ const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "low";
 // On Fly, mount a volume and set DATA_DIR=/data so records survive deploys.
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const PROFILES_FILE = path.join(DATA_DIR, "profiles.json");
+const SCHOOLS_FILE = path.join(DATA_DIR, "schools.json");
 // Admin access requires ADMIN_PASSWORD (e.g. `fly secrets set ADMIN_PASSWORD=...`).
 // Without it, the admin endpoints stay locked for everyone.
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
@@ -51,6 +54,36 @@ function saveEntries(entries) {
   const tmp = PROFILES_FILE + ".tmp";
   fs.writeFileSync(tmp, JSON.stringify({ entries }, null, 2));
   fs.renameSync(tmp, PROFILES_FILE);
+}
+
+// ---- The school list behind the sign-in dropdown ----
+// Seeded with one placeholder until the real list is loaded; the admin
+// manages it from the records page, and a teacher whose school is missing
+// can add it herself while signing in.
+const DEFAULT_SCHOOLS = ["Demo School"];
+const MAX_SCHOOLS = 2000;
+
+function loadSchools() {
+  let raw;
+  try {
+    raw = fs.readFileSync(SCHOOLS_FILE, "utf8");
+  } catch (err) {
+    if (err && err.code === "ENOENT") return [...DEFAULT_SCHOOLS];
+    throw err;
+  }
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed.schools) ? parsed.schools : [...DEFAULT_SCHOOLS];
+}
+
+function saveSchools(schools) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tmp = SCHOOLS_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify({ schools }, null, 2));
+  fs.renameSync(tmp, SCHOOLS_FILE);
+}
+
+function sortedSchools(schools) {
+  return [...schools].sort((a, b) => a.localeCompare(b));
 }
 
 function passwordMatches(givenHeader) {
@@ -136,6 +169,61 @@ app.delete("/api/profiles/:id", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// The sign-in dropdown reads this; no password (it is public information and
+// the page needs it before anyone is identified).
+app.get("/api/schools", (req, res) => {
+  res.json({ schools: sortedSchools(loadSchools()) });
+});
+
+// Open like the profile submission: a teacher whose school is missing must be
+// able to add it and carry on. The admin can delete anything stray.
+app.post("/api/schools", (req, res) => {
+  const name = String((req.body || {}).name || "").trim().replace(/\s+/g, " ");
+  if (name.length < 2 || name.length > 120) {
+    return res.status(400).json({ error: "Please enter a school name between 2 and 120 characters." });
+  }
+  const schools = loadSchools();
+  const existing = schools.find((s) => s.toLowerCase() === name.toLowerCase());
+  if (existing) return res.json({ ok: true, name: existing, schools: sortedSchools(schools) });
+  if (schools.length >= MAX_SCHOOLS) {
+    return res.status(507).json({ error: "The school list is full — contact the administrator." });
+  }
+  const next = [...schools, name];
+  saveSchools(next);
+  res.json({ ok: true, name, schools: sortedSchools(next) });
+});
+
+app.delete("/api/schools/:name", requireAdmin, (req, res) => {
+  const name = String(req.params.name || "");
+  const schools = loadSchools();
+  const next = schools.filter((s) => s.toLowerCase() !== name.toLowerCase());
+  if (next.length === schools.length) return res.status(404).json({ error: "School not found." });
+  saveSchools(next);
+  res.json({ ok: true, schools: sortedSchools(next) });
+});
+
+// Page images of a scanned/photographed form. Bounded so one request can't
+// push an unreasonable payload at the model.
+const MAX_IMAGES = 8;
+const MAX_IMAGE_CHARS = 4_000_000;   // ~3 MB per page once base64-encoded
+const MAX_IMAGES_CHARS = 20_000_000;
+
+function validateImages(images) {
+  if (images === undefined || images === null) return { images: [] };
+  if (!Array.isArray(images)) return { error: "'images' must be an array." };
+  if (images.length > MAX_IMAGES) return { error: `At most ${MAX_IMAGES} page images can be read at once.` };
+  let total = 0;
+  for (const img of images) {
+    if (typeof img !== "string" || !/^data:image\/(png|jpeg|jpg|webp);base64,/.test(img)) {
+      return { error: "Each image must be a PNG, JPEG or WebP data URL." };
+    }
+    if (img.length > MAX_IMAGE_CHARS) return { error: "One of the pages is too large." };
+    total += img.length;
+  }
+  if (total > MAX_IMAGES_CHARS) return { error: "Those pages are too large to read at once." };
+  return { images };
+}
+
 app.post("/api/chat", async (req, res) => {
   if (!API_KEY) {
     return res.status(500).json({
@@ -147,16 +235,28 @@ app.post("/api/chat", async (req, res) => {
   if (!prompt) {
     return res.status(400).json({ error: "Missing 'prompt' in request body." });
   }
+  const checked = validateImages((req.body || {}).images);
+  if (checked.error) return res.status(400).json({ error: checked.error });
+  const images = checked.images;
 
   try {
     // Reasoning models spend tokens on hidden reasoning that also counts against
     // max_completion_tokens, so add headroom to avoid truncating the visible answer.
     const outputBudget = (maxTokens || 1024) + 4096;
 
+    // With images the message becomes multimodal content parts; plain prompts
+    // keep the simple string form.
+    const content = images.length
+      ? [
+          { type: "text", text: prompt },
+          ...images.map((url) => ({ type: "image_url", image_url: { url, detail: "high" } }))
+        ]
+      : prompt;
+
     const body = {
       model: MODEL,
       max_completion_tokens: outputBudget,
-      messages: [{ role: "user", content: prompt }]
+      messages: [{ role: "user", content }]
     };
     if (REASONING_EFFORT) body.reasoning_effort = REASONING_EFFORT;
 
